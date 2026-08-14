@@ -28,8 +28,10 @@
 <div id="root"></div>
 
 <script>
-// Shim locale dell'API window.storage (usata dall'app) basato su localStorage,
-// cosi' il componente funziona identico dentro Claude e dentro l'app installata.
+// Shim locale dell'API window.storage (usata dall'app) basato su localStorage:
+// STESSE CHIAVI di sempre (grocery-lists-v3, grocery-settings-v3, grocery-gamification-v1)
+// cosi' se apri questo file dallo stesso indirizzo/percorso di prima, le liste
+// e le opzioni salvate in precedenza NON vengono cancellate.
 window.storage = {
   async get(key) {
     const v = localStorage.getItem(key);
@@ -72,6 +74,9 @@ import {
   ListPlus,
   ListX,
   FileText,
+  Percent,
+  Gem,
+  Globe,
 } from "lucide-react";
 
 
@@ -96,7 +101,7 @@ const COLOR_PALETTE = [
   "#BA7517",
 ];
 
-const SORT_OPTIONS = [
+const SORT_OPTIONS_IT = [
   { id: "manual", label: "Ordine personale" },
   { id: "alpha", label: "Alfabetico" },
   { id: "checked", label: "Ordine di spunta" },
@@ -105,7 +110,6 @@ const SORT_OPTIONS = [
   { id: "qty-asc", label: "Quantità: dalla più bassa" },
   { id: "qty-desc", label: "Quantità: dalla più alta" },
 ];
-const HOME_SORT_OPTIONS = SORT_OPTIONS.filter((o) => o.id !== "checked");
 
 const COLOR_STYLE_OPTIONS = [
   { id: "underline", label: "Sottolineatura" },
@@ -115,6 +119,239 @@ const COLOR_STYLE_OPTIONS = [
   { id: "fill-gold", label: "Riempimento + striscia dorata" },
   { id: "fill-silver", label: "Riempimento + striscia argento" },
 ];
+
+const BANNER_STYLES = [
+  {
+    id: "cardboard",
+    name: "Cartone Riciclato",
+    desc: "Texture kraft consumata, titolo timbrato nel colore della lista.",
+    cost: 100,
+    className: "banner-cardboard",
+  },
+  {
+    id: "rust",
+    name: "Insegna Arrugginita",
+    desc: "Metallo ossidato e graffiato, titolo dipinto nel colore della lista.",
+    cost: 100,
+    className: "banner-rust",
+  },
+  {
+    id: "paper",
+    name: "Carta Strappata",
+    desc: "Foglio ingiallito e strappato, titolo evidenziato nel colore della lista.",
+    cost: 100,
+    className: "banner-paper",
+  },
+];
+
+const LANGUAGES = [
+  { id: "it", label: "Italiano", flag: "🇮🇹" },
+  { id: "en", label: "English", flag: "🇬🇧" },
+  { id: "fr", label: "Français", flag: "🇫🇷" },
+  { id: "de", label: "Deutsch", flag: "🇩🇪" },
+  { id: "zh", label: "中文", flag: "🇨🇳" },
+  { id: "ko", label: "한국어", flag: "🇰🇷" },
+  { id: "ja", label: "日本語", flag: "🇯🇵" },
+];
+
+const TRANSLATIONS = {
+  it: {
+    appTitle: "Le mie liste", settingsTitle: "Impostazioni", pointsTitle: "I tuoi punti",
+    newList: "Nuova lista", createList: "Crea lista", cancel: "Annulla", delete: "Elimina",
+    edit: "Modifica", save: "Salva", confirm: "Conferma", back: "Indietro", add: "Aggiungi",
+    filterBtn: "Filtra", suggestionsBtn: "Suggerimenti", importBtn: "Importa da lista",
+    quickCheckBtn: "Check veloce", textAddBtn: "Da testo", completeShoppingBtn: "Completa la spesa",
+    total: "totale", completedBadge: "Completata",
+    deleteListConfirmTitle: "Eliminare questa lista?",
+    deleteListConfirmBody: "Verrà eliminata definitivamente insieme a tutti i suoi articoli.",
+    completeConfirmTitle: "Completare la spesa?",
+    completeConfirmBody: "La lista verrà chiusa e il totale calcolato. Potrai comunque ricominciare più avanti.",
+    yesComplete: "Sì, completa", shoppingDone: "Spesa completata.", close: "Chiudi",
+    startShopping: "Inizia la spesa", editList: "Modifica lista",
+    alreadyCompletedBody: "Questa lista è già stata completata. Cosa vuoi fare?",
+    strikethroughLabel: "Barra gli elementi spuntati", animationsLabel: "Animazioni",
+    gamificationLabel: "Gamification", colorStyleTitle: "Stile dei colori (liste e articoli)",
+    bannerStyleTitle: "Stile banner (liste)", bannerStyleDefault: "Predefinito",
+    bannerStyleHint: "Acquista estetiche nella pagina Punti per sbloccarle qui.",
+    languageTitle: "Lingua", yourBalance: "Il tuo saldo", shopTitle: "Negozio",
+    buy: "Acquista", owned: "Posseduto", apply: "Applica", applied: "Applicata",
+    notEnoughPoints: "Punti insufficienti", purchaseConfirmTitle: "Confermi l'acquisto?",
+    applyPromptTitle: "Applicarla subito?",
+    applyPromptBody: "Estetica acquistata. Vuoi applicarla ora alle tue liste?",
+    yes: "Sì", no: "No", quickCheckTitle: "Check veloce", deleteSelected: "Elimina selezionati",
+    areYouSure: "Sei sicuro?", yesDelete: "Sì, elimina", importTitle: "Importa da un'altra lista",
+    textAddTitle: "Aggiungi da testo", continueBtn: "Continua", quantityTitle: "Quantità",
+    discountLabel: "Sconto", itemsCount: "articoli", spuntati: "spuntati",
+  },
+  en: {
+    appTitle: "My lists", settingsTitle: "Settings", pointsTitle: "Your points",
+    newList: "New list", createList: "Create list", cancel: "Cancel", delete: "Delete",
+    edit: "Edit", save: "Save", confirm: "Confirm", back: "Back", add: "Add",
+    filterBtn: "Filter", suggestionsBtn: "Suggestions", importBtn: "Import from list",
+    quickCheckBtn: "Quick check", textAddBtn: "From text", completeShoppingBtn: "Complete shopping",
+    total: "total", completedBadge: "Completed",
+    deleteListConfirmTitle: "Delete this list?",
+    deleteListConfirmBody: "It will be permanently deleted along with all its items.",
+    completeConfirmTitle: "Complete shopping?",
+    completeConfirmBody: "The list will be closed and the total calculated. You can still restart it later.",
+    yesComplete: "Yes, complete", shoppingDone: "Shopping completed.", close: "Close",
+    startShopping: "Start shopping", editList: "Edit list",
+    alreadyCompletedBody: "This list has already been completed. What do you want to do?",
+    strikethroughLabel: "Strike through checked items", animationsLabel: "Animations",
+    gamificationLabel: "Gamification", colorStyleTitle: "Color style (lists and items)",
+    bannerStyleTitle: "Banner style (lists)", bannerStyleDefault: "Default",
+    bannerStyleHint: "Buy aesthetics on the Points page to unlock them here.",
+    languageTitle: "Language", yourBalance: "Your balance", shopTitle: "Shop",
+    buy: "Buy", owned: "Owned", apply: "Apply", applied: "Applied",
+    notEnoughPoints: "Not enough points", purchaseConfirmTitle: "Confirm purchase?",
+    applyPromptTitle: "Apply it now?",
+    applyPromptBody: "Aesthetic purchased. Do you want to apply it to your lists now?",
+    yes: "Yes", no: "No", quickCheckTitle: "Quick check", deleteSelected: "Delete selected",
+    areYouSure: "Are you sure?", yesDelete: "Yes, delete", importTitle: "Import from another list",
+    textAddTitle: "Add from text", continueBtn: "Continue", quantityTitle: "Quantity",
+    discountLabel: "Discount", itemsCount: "items", spuntati: "checked",
+  },
+  fr: {
+    appTitle: "Mes listes", settingsTitle: "Paramètres", pointsTitle: "Vos points",
+    newList: "Nouvelle liste", createList: "Créer la liste", cancel: "Annuler", delete: "Supprimer",
+    edit: "Modifier", save: "Enregistrer", confirm: "Confirmer", back: "Retour", add: "Ajouter",
+    filterBtn: "Filtrer", suggestionsBtn: "Suggestions", importBtn: "Importer d'une liste",
+    quickCheckBtn: "Vérification rapide", textAddBtn: "Depuis texte", completeShoppingBtn: "Terminer les courses",
+    total: "total", completedBadge: "Terminée",
+    deleteListConfirmTitle: "Supprimer cette liste ?",
+    deleteListConfirmBody: "Elle sera supprimée définitivement avec tous ses articles.",
+    completeConfirmTitle: "Terminer les courses ?",
+    completeConfirmBody: "La liste sera clôturée et le total calculé. Vous pourrez la recommencer plus tard.",
+    yesComplete: "Oui, terminer", shoppingDone: "Courses terminées.", close: "Fermer",
+    startShopping: "Commencer les courses", editList: "Modifier la liste",
+    alreadyCompletedBody: "Cette liste a déjà été complétée. Que voulez-vous faire ?",
+    strikethroughLabel: "Barrer les articles cochés", animationsLabel: "Animations",
+    gamificationLabel: "Gamification", colorStyleTitle: "Style des couleurs (listes et articles)",
+    bannerStyleTitle: "Style de bannière (listes)", bannerStyleDefault: "Par défaut",
+    bannerStyleHint: "Achetez des styles dans la page Points pour les débloquer ici.",
+    languageTitle: "Langue", yourBalance: "Votre solde", shopTitle: "Boutique",
+    buy: "Acheter", owned: "Possédé", apply: "Appliquer", applied: "Appliqué",
+    notEnoughPoints: "Points insuffisants", purchaseConfirmTitle: "Confirmer l'achat ?",
+    applyPromptTitle: "L'appliquer maintenant ?",
+    applyPromptBody: "Style acheté. Voulez-vous l'appliquer à vos listes maintenant ?",
+    yes: "Oui", no: "Non", quickCheckTitle: "Vérification rapide", deleteSelected: "Supprimer la sélection",
+    areYouSure: "Êtes-vous sûr ?", yesDelete: "Oui, supprimer", importTitle: "Importer d'une autre liste",
+    textAddTitle: "Ajouter depuis un texte", continueBtn: "Continuer", quantityTitle: "Quantité",
+    discountLabel: "Remise", itemsCount: "articles", spuntati: "cochés",
+  },
+  de: {
+    appTitle: "Meine Listen", settingsTitle: "Einstellungen", pointsTitle: "Deine Punkte",
+    newList: "Neue Liste", createList: "Liste erstellen", cancel: "Abbrechen", delete: "Löschen",
+    edit: "Bearbeiten", save: "Speichern", confirm: "Bestätigen", back: "Zurück", add: "Hinzufügen",
+    filterBtn: "Filtern", suggestionsBtn: "Vorschläge", importBtn: "Aus Liste importieren",
+    quickCheckBtn: "Schnellprüfung", textAddBtn: "Aus Text", completeShoppingBtn: "Einkauf abschließen",
+    total: "Gesamt", completedBadge: "Abgeschlossen",
+    deleteListConfirmTitle: "Diese Liste löschen?",
+    deleteListConfirmBody: "Sie wird zusammen mit allen Artikeln endgültig gelöscht.",
+    completeConfirmTitle: "Einkauf abschließen?",
+    completeConfirmBody: "Die Liste wird geschlossen und die Summe berechnet. Du kannst später erneut starten.",
+    yesComplete: "Ja, abschließen", shoppingDone: "Einkauf abgeschlossen.", close: "Schließen",
+    startShopping: "Einkauf starten", editList: "Liste bearbeiten",
+    alreadyCompletedBody: "Diese Liste wurde bereits abgeschlossen. Was möchtest du tun?",
+    strikethroughLabel: "Erledigte Artikel durchstreichen", animationsLabel: "Animationen",
+    gamificationLabel: "Gamification", colorStyleTitle: "Farbstil (Listen und Artikel)",
+    bannerStyleTitle: "Banner-Stil (Listen)", bannerStyleDefault: "Standard",
+    bannerStyleHint: "Kaufe Designs auf der Punkte-Seite, um sie hier freizuschalten.",
+    languageTitle: "Sprache", yourBalance: "Dein Guthaben", shopTitle: "Shop",
+    buy: "Kaufen", owned: "Im Besitz", apply: "Anwenden", applied: "Angewendet",
+    notEnoughPoints: "Nicht genug Punkte", purchaseConfirmTitle: "Kauf bestätigen?",
+    applyPromptTitle: "Jetzt anwenden?",
+    applyPromptBody: "Design gekauft. Möchtest du es jetzt auf deine Listen anwenden?",
+    yes: "Ja", no: "Nein", quickCheckTitle: "Schnellprüfung", deleteSelected: "Auswahl löschen",
+    areYouSure: "Bist du sicher?", yesDelete: "Ja, löschen", importTitle: "Aus einer anderen Liste importieren",
+    textAddTitle: "Aus Text hinzufügen", continueBtn: "Weiter", quantityTitle: "Menge",
+    discountLabel: "Rabatt", itemsCount: "Artikel", spuntati: "erledigt",
+  },
+  zh: {
+    appTitle: "我的清单", settingsTitle: "设置", pointsTitle: "我的积分",
+    newList: "新建清单", createList: "创建清单", cancel: "取消", delete: "删除",
+    edit: "编辑", save: "保存", confirm: "确认", back: "返回", add: "添加",
+    filterBtn: "筛选", suggestionsBtn: "建议", importBtn: "从其他清单导入",
+    quickCheckBtn: "快速检查", textAddBtn: "从文本添加", completeShoppingBtn: "完成购物",
+    total: "总计", completedBadge: "已完成",
+    deleteListConfirmTitle: "删除这个清单？",
+    deleteListConfirmBody: "该清单及其所有物品将被永久删除。",
+    completeConfirmTitle: "完成购物？",
+    completeConfirmBody: "清单将被关闭并计算总价。之后仍可重新开始购物。",
+    yesComplete: "是，完成", shoppingDone: "购物已完成。", close: "关闭",
+    startShopping: "开始购物", editList: "编辑清单",
+    alreadyCompletedBody: "这个清单已经完成。你想做什么？",
+    strikethroughLabel: "已勾选项划线显示", animationsLabel: "动画效果",
+    gamificationLabel: "游戏化", colorStyleTitle: "颜色样式（清单与物品）",
+    bannerStyleTitle: "横幅样式（清单）", bannerStyleDefault: "默认",
+    bannerStyleHint: "在积分页面购买样式以在此解锁。",
+    languageTitle: "语言", yourBalance: "你的余额", shopTitle: "商店",
+    buy: "购买", owned: "已拥有", apply: "应用", applied: "已应用",
+    notEnoughPoints: "积分不足", purchaseConfirmTitle: "确认购买？",
+    applyPromptTitle: "现在应用吗？",
+    applyPromptBody: "样式已购买。要现在应用到你的清单吗？",
+    yes: "是", no: "否", quickCheckTitle: "快速检查", deleteSelected: "删除所选",
+    areYouSure: "确定吗？", yesDelete: "是，删除", importTitle: "从其他清单导入",
+    textAddTitle: "从文本添加", continueBtn: "继续", quantityTitle: "数量",
+    discountLabel: "折扣", itemsCount: "件物品", spuntati: "已勾选",
+  },
+  ko: {
+    appTitle: "내 목록", settingsTitle: "설정", pointsTitle: "내 포인트",
+    newList: "새 목록", createList: "목록 만들기", cancel: "취소", delete: "삭제",
+    edit: "수정", save: "저장", confirm: "확인", back: "뒤로", add: "추가",
+    filterBtn: "필터", suggestionsBtn: "추천", importBtn: "다른 목록에서 가져오기",
+    quickCheckBtn: "빠른 정리", textAddBtn: "텍스트로 추가", completeShoppingBtn: "장보기 완료",
+    total: "합계", completedBadge: "완료됨",
+    deleteListConfirmTitle: "이 목록을 삭제할까요?",
+    deleteListConfirmBody: "모든 항목과 함께 영구적으로 삭제됩니다.",
+    completeConfirmTitle: "장보기를 완료할까요?",
+    completeConfirmBody: "목록이 닫히고 합계가 계산됩니다. 나중에 다시 시작할 수 있습니다.",
+    yesComplete: "예, 완료", shoppingDone: "장보기가 완료되었습니다.", close: "닫기",
+    startShopping: "장보기 시작", editList: "목록 수정",
+    alreadyCompletedBody: "이 목록은 이미 완료되었습니다. 무엇을 하시겠습니까?",
+    strikethroughLabel: "체크된 항목에 취소선 표시", animationsLabel: "애니메이션",
+    gamificationLabel: "게이미피케이션", colorStyleTitle: "색상 스타일 (목록과 항목)",
+    bannerStyleTitle: "배너 스타일 (목록)", bannerStyleDefault: "기본값",
+    bannerStyleHint: "포인트 페이지에서 스타일을 구매하면 여기서 사용할 수 있습니다.",
+    languageTitle: "언어", yourBalance: "내 잔액", shopTitle: "상점",
+    buy: "구매", owned: "보유 중", apply: "적용", applied: "적용됨",
+    notEnoughPoints: "포인트 부족", purchaseConfirmTitle: "구매하시겠습니까?",
+    applyPromptTitle: "지금 적용할까요?",
+    applyPromptBody: "스타일을 구매했습니다. 지금 목록에 적용할까요?",
+    yes: "예", no: "아니요", quickCheckTitle: "빠른 정리", deleteSelected: "선택 삭제",
+    areYouSure: "확실합니까?", yesDelete: "예, 삭제", importTitle: "다른 목록에서 가져오기",
+    textAddTitle: "텍스트로 추가", continueBtn: "계속", quantityTitle: "수량",
+    discountLabel: "할인", itemsCount: "개 항목", spuntati: "체크됨",
+  },
+  ja: {
+    appTitle: "マイリスト", settingsTitle: "設定", pointsTitle: "ポイント",
+    newList: "新しいリスト", createList: "リストを作成", cancel: "キャンセル", delete: "削除",
+    edit: "編集", save: "保存", confirm: "確認", back: "戻る", add: "追加",
+    filterBtn: "フィルター", suggestionsBtn: "提案", importBtn: "他のリストから読み込み",
+    quickCheckBtn: "クイックチェック", textAddBtn: "テキストから追加", completeShoppingBtn: "買い物を完了",
+    total: "合計", completedBadge: "完了",
+    deleteListConfirmTitle: "このリストを削除しますか？",
+    deleteListConfirmBody: "すべての項目とともに完全に削除されます。",
+    completeConfirmTitle: "買い物を完了しますか？",
+    completeConfirmBody: "リストが閉じられ、合計が計算されます。後でまた始めることもできます。",
+    yesComplete: "はい、完了", shoppingDone: "買い物が完了しました。", close: "閉じる",
+    startShopping: "買い物を始める", editList: "リストを編集",
+    alreadyCompletedBody: "このリストはすでに完了しています。どうしますか？",
+    strikethroughLabel: "チェック済み項目に取り消し線", animationsLabel: "アニメーション",
+    gamificationLabel: "ゲーミフィケーション", colorStyleTitle: "カラースタイル（リストと項目）",
+    bannerStyleTitle: "バナースタイル（リスト）", bannerStyleDefault: "デフォルト",
+    bannerStyleHint: "ポイントページでスタイルを購入するとここで使えます。",
+    languageTitle: "言語", yourBalance: "残高", shopTitle: "ショップ",
+    buy: "購入", owned: "所有済み", apply: "適用", applied: "適用済み",
+    notEnoughPoints: "ポイント不足", purchaseConfirmTitle: "購入しますか？",
+    applyPromptTitle: "今すぐ適用しますか？",
+    applyPromptBody: "スタイルを購入しました。今すぐリストに適用しますか？",
+    yes: "はい", no: "いいえ", quickCheckTitle: "クイックチェック", deleteSelected: "選択項目を削除",
+    areYouSure: "よろしいですか？", yesDelete: "はい、削除", importTitle: "他のリストから読み込み",
+    textAddTitle: "テキストから追加", continueBtn: "続ける", quantityTitle: "数量",
+    discountLabel: "割引", itemsCount: "件", spuntati: "チェック済み",
+  },
+};
 
 const EMOJI_MAP = [
   [["latte"], "🥛"],
@@ -180,6 +417,17 @@ function suggestEmoji(title) {
   return "";
 }
 
+function effectiveUnitPrice(it) {
+  const p = Number(it.price) || 0;
+  if (it.discountActive && Number(it.discount) > 0) {
+    return p * (1 - Math.min(100, Number(it.discount)) / 100);
+  }
+  return p;
+}
+function itemSubtotal(it) {
+  return effectiveUnitPrice(it) * (Number(it.qty) || 0);
+}
+
 function sortItems(items, checkOrder, mode) {
   const arr = [...items];
   switch (mode) {
@@ -192,9 +440,9 @@ function sortItems(items, checkOrder, mode) {
       return [...checkedFirst, ...rest];
     }
     case "price-asc":
-      return arr.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
+      return arr.sort((a, b) => effectiveUnitPrice(a) - effectiveUnitPrice(b));
     case "price-desc":
-      return arr.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+      return arr.sort((a, b) => effectiveUnitPrice(b) - effectiveUnitPrice(a));
     case "qty-asc":
       return arr.sort((a, b) => (Number(a.qty) || 0) - (Number(b.qty) || 0));
     case "qty-desc":
@@ -241,17 +489,10 @@ function ColorTag({ styles, color, mode, small, children }) {
       </span>
     );
   }
-
   const base = {
-    position: "relative",
-    display: "inline-block",
-    borderRadius: small ? 6 : 7,
-    overflow: "hidden",
-    background: styles.colors.paper,
-    border: `1px solid ${styles.colors.line}`,
-    width: "fit-content",
+    position: "relative", display: "inline-block", borderRadius: small ? 6 : 7, overflow: "hidden",
+    background: styles.colors.paper, border: `1px solid ${styles.colors.line}`, width: "fit-content",
   };
-
   if (m === "stripe-left") {
     return (
       <span style={{ ...base, padding: small ? "2px 7px 2px 12px" : "3px 9px 3px 14px" }}>
@@ -269,11 +510,8 @@ function ColorTag({ styles, color, mode, small, children }) {
     );
   }
   const bandGradient =
-    m === "fill-gold"
-      ? "linear-gradient(90deg,#B8862E,#F5E08C,#B8862E)"
-      : m === "fill-silver"
-      ? "linear-gradient(90deg,#9A9A9A,#F0F0F0,#9A9A9A)"
-      : null;
+    m === "fill-gold" ? "linear-gradient(90deg,#B8862E,#F5E08C,#B8862E)"
+    : m === "fill-silver" ? "linear-gradient(90deg,#9A9A9A,#F0F0F0,#9A9A9A)" : null;
   return (
     <span style={{ ...base, background: color, border: "none", color: "#fff", padding: small ? "2px 8px" : "3px 10px" }}>
       {bandGradient && (
@@ -284,27 +522,26 @@ function ColorTag({ styles, color, mode, small, children }) {
   );
 }
 
+function BannerPreview({ id, color, title }) {
+  const style = BANNER_STYLES.find((b) => b.id === id);
+  const cls = style ? style.className : "";
+  return (
+    <div className={cls} style={{ "--banner-color": color, padding: "14px 12px", minHeight: 46, display: "flex", alignItems: "center" }}>
+      <span className="stampTitle">{title}</span>
+    </div>
+  );
+}
+
 function ColorSwatchRow({ styles, value, onChange, allowNone = true }) {
   return (
     <div style={styles.swatchRow}>
       {allowNone && (
-        <button
-          type="button"
-          style={{ ...styles.swatch, ...styles.swatchNone, ...(value ? {} : styles.swatchSelected) }}
-          onClick={() => onChange(null)}
-          aria-label="Nessun colore"
-        >
+        <button type="button" style={{ ...styles.swatch, ...styles.swatchNone, ...(value ? {} : styles.swatchSelected) }} onClick={() => onChange(null)} aria-label="Nessun colore">
           <X size={12} color={styles.colors.muted} />
         </button>
       )}
       {COLOR_PALETTE.map((c) => (
-        <button
-          type="button"
-          key={c}
-          style={{ ...styles.swatch, background: c, ...(value === c ? styles.swatchSelected : {}) }}
-          onClick={() => onChange(c)}
-          aria-label={`Colore ${c}`}
-        />
+        <button type="button" key={c} style={{ ...styles.swatch, background: c, ...(value === c ? styles.swatchSelected : {}) }} onClick={() => onChange(c)} aria-label={`Colore ${c}`} />
       ))}
     </div>
   );
@@ -314,31 +551,16 @@ function FilterDropdown({ styles, animated, sortOptions, sortMode, setSortMode, 
   return (
     <div style={styles.filterDropdown} className={animated ? "anim-panel-in" : ""}>
       {sortOptions.map((opt) => (
-        <button
-          key={opt.id}
-          style={{ ...styles.filterOption, ...(sortMode === opt.id ? styles.filterOptionActive : {}) }}
-          onClick={() => setSortMode(opt.id)}
-        >
+        <button key={opt.id} style={{ ...styles.filterOption, ...(sortMode === opt.id ? styles.filterOptionActive : {}) }} onClick={() => setSortMode(opt.id)}>
           {opt.label}
         </button>
       ))}
       <div style={styles.filterDivider} />
       <p style={styles.filterSectionLabel}>Colore</p>
       <div style={styles.swatchRow}>
-        <button
-          type="button"
-          style={{ ...styles.swatch, ...styles.swatchAll, ...(colorFilter ? {} : styles.swatchSelected) }}
-          onClick={() => setColorFilter(null)}
-          aria-label="Tutti i colori"
-        />
+        <button type="button" style={{ ...styles.swatch, ...styles.swatchAll, ...(colorFilter ? {} : styles.swatchSelected) }} onClick={() => setColorFilter(null)} aria-label="Tutti i colori" />
         {COLOR_PALETTE.map((c) => (
-          <button
-            key={c}
-            type="button"
-            style={{ ...styles.swatch, background: c, ...(colorFilter === c ? styles.swatchSelected : {}) }}
-            onClick={() => setColorFilter(c)}
-            aria-label={`Filtra colore ${c}`}
-          />
+          <button key={c} type="button" style={{ ...styles.swatch, background: c, ...(colorFilter === c ? styles.swatchSelected : {}) }} onClick={() => setColorFilter(c)} aria-label={`Filtra colore ${c}`} />
         ))}
       </div>
     </div>
@@ -348,18 +570,14 @@ function FilterDropdown({ styles, animated, sortOptions, sortMode, setSortMode, 
 function ModalOverlay({ styles, onClose, children, animated, wide }) {
   return (
     <div style={styles.modalOverlay} onClick={onClose}>
-      <div
-        style={wide ? styles.wideModalCard : styles.modalCard}
-        className={animated ? "anim-modal-in" : ""}
-        onClick={(e) => e.stopPropagation()}
-      >
+      <div style={wide ? styles.wideModalCard : styles.modalCard} className={animated ? "anim-modal-in" : ""} onClick={(e) => e.stopPropagation()}>
         {children}
       </div>
     </div>
   );
 }
 
-function QtyWheelModal({ styles, initial, onCancel, onConfirm, animated }) {
+function QtyWheelModal({ styles, t, initial, onCancel, onConfirm, animated }) {
   const [value, setValue] = useState(Math.max(0, Math.min(99, Number(initial) || 0)));
   const listRef = useRef(null);
   const itemH = 36;
@@ -383,26 +601,44 @@ function QtyWheelModal({ styles, initial, onCancel, onConfirm, animated }) {
 
   return (
     <ModalOverlay styles={styles} onClose={onCancel} animated={animated}>
-      <p style={styles.modalTitle}>Quantità</p>
+      <p style={styles.modalTitle}>{t("quantityTitle")}</p>
       <div style={styles.wheelWrap}>
         <div style={styles.wheelHighlight} />
         <div ref={listRef} className="wheelScroll" style={styles.wheelScroll} onScroll={handleScroll}>
           <div style={{ height: itemH * 2 }} />
           {Array.from({ length: max + 1 }).map((_, n) => (
-            <div key={n} style={{ ...styles.wheelItem, ...(n === value ? styles.wheelItemActive : {}) }}>
-              {n}
-            </div>
+            <div key={n} style={{ ...styles.wheelItem, ...(n === value ? styles.wheelItemActive : {}) }}>{n}</div>
           ))}
           <div style={{ height: itemH * 2 }} />
         </div>
       </div>
       <div style={styles.modalColGap}>
-        <button style={styles.primaryBtn} onClick={() => onConfirm(value)}>
-          Conferma
+        <button style={styles.primaryBtn} onClick={() => onConfirm(value)}>{t("confirm")}</button>
+        <button style={styles.textBtn} onClick={onCancel}>{t("cancel")}</button>
+      </div>
+    </ModalOverlay>
+  );
+}
+
+function DiscountModal({ styles, t, initial, onCancel, onConfirm, animated }) {
+  const [value, setValue] = useState(String(initial || 0));
+  return (
+    <ModalOverlay styles={styles} onClose={onCancel} animated={animated}>
+      <p style={styles.modalTitle}>{t("discountLabel")}</p>
+      <input
+        autoFocus
+        type="number"
+        min="0"
+        max="100"
+        style={{ ...styles.input, textAlign: "center", fontSize: 22, marginBottom: 14 }}
+        value={value}
+        onChange={(e) => setValue(e.target.value)}
+      />
+      <div style={styles.modalColGap}>
+        <button style={styles.primaryBtn} onClick={() => onConfirm(Math.max(0, Math.min(100, Number(value) || 0)))}>
+          {t("confirm")}
         </button>
-        <button style={styles.textBtn} onClick={onCancel}>
-          Annulla
-        </button>
+        <button style={styles.textBtn} onClick={onCancel}>{t("cancel")}</button>
       </div>
     </ModalOverlay>
   );
@@ -412,25 +648,11 @@ function SelectableItemRow({ styles, it, selected, onToggle, tone }) {
   const isRemove = tone === "remove";
   return (
     <button style={styles.selectRow} onClick={onToggle}>
-      <span
-        style={{
-          ...styles.selectCircle,
-          ...(selected ? (isRemove ? styles.selectCircleRemove : styles.selectCircleOn) : {}),
-        }}
-      >
+      <span style={{ ...styles.selectCircle, ...(selected ? (isRemove ? styles.selectCircleRemove : styles.selectCircleOn) : {}) }}>
         {selected && (isRemove ? <X size={12} color="#fff" strokeWidth={3} /> : <Check size={12} color="#fff" strokeWidth={3} />)}
       </span>
       {it.emoji ? <span style={{ fontSize: 15 }}>{it.emoji}</span> : null}
-      <span
-        style={{
-          flex: 1,
-          textAlign: "left",
-          fontSize: 13.5,
-          ...(isRemove && selected ? { textDecoration: "line-through", color: styles.colors.muted } : {}),
-        }}
-      >
-        {it.title}
-      </span>
+      <span style={{ flex: 1, textAlign: "left", fontSize: 13.5, ...(isRemove && selected ? { textDecoration: "line-through", color: styles.colors.muted } : {}) }}>{it.title}</span>
       <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: styles.colors.muted }}>×{it.qty}</span>
     </button>
   );
@@ -439,12 +661,10 @@ function SelectableItemRow({ styles, it, selected, onToggle, tone }) {
 function App() {
   const [lists, setLists] = useState([]);
   const [settings, setSettings] = useState({
-    strikethrough: true,
-    animations: true,
-    colorStyle: "underline",
-    gamification: true,
+    strikethrough: true, animations: true, colorStyle: "underline", gamification: true,
+    bannerStyle: "default", language: "it",
   });
-  const [points, setPoints] = useState(0);
+  const [gameData, setGameData] = useState({ points: 0, ownedBanners: [] });
   const [loaded, setLoaded] = useState(false);
   const [screen, setScreen] = useState("home");
   const [activeId, setActiveId] = useState(null);
@@ -453,11 +673,16 @@ function App() {
   const [showNewList, setShowNewList] = useState(false);
   const [choiceModalFor, setChoiceModalFor] = useState(null);
   const [confirmCompleteFor, setConfirmCompleteFor] = useState(null);
+  const [confirmDeleteFor, setConfirmDeleteFor] = useState(null);
   const [completionBanner, setCompletionBanner] = useState(null);
   const [storageError, setStorageError] = useState(false);
   const hasLoadedListsOnce = useRef(false);
   const hasLoadedSettingsOnce = useRef(false);
-  const hasLoadedPointsOnce = useRef(false);
+  const hasLoadedGameOnce = useRef(false);
+
+  const lang = settings.language || "it";
+  const t = (key) => (TRANSLATIONS[lang] && TRANSLATIONS[lang][key]) || TRANSLATIONS.it[key] || key;
+  const SORT_OPTIONS = SORT_OPTIONS_IT.map((o) => ({ id: o.id, label: o.id === "manual" ? o.label : o.label }));
 
   useEffect(() => {
     (async () => {
@@ -471,7 +696,10 @@ function App() {
       } catch (e) {}
       try {
         const res3 = await window.storage.get(GAMIFICATION_KEY, false);
-        if (res3 && res3.value) setPoints(JSON.parse(res3.value).points || 0);
+        if (res3 && res3.value) {
+          const parsed = JSON.parse(res3.value);
+          setGameData({ points: parsed.points || 0, ownedBanners: parsed.ownedBanners || [] });
+        }
       } catch (e) {}
       setLoaded(true);
     })();
@@ -479,49 +707,32 @@ function App() {
 
   useEffect(() => {
     if (!loaded) return;
-    if (!hasLoadedListsOnce.current) {
-      hasLoadedListsOnce.current = true;
-      return;
-    }
+    if (!hasLoadedListsOnce.current) { hasLoadedListsOnce.current = true; return; }
     (async () => {
       try {
         const res = await window.storage.set(LISTS_KEY, JSON.stringify(lists), false);
         setStorageError(!res);
-      } catch (e) {
-        setStorageError(true);
-      }
+      } catch (e) { setStorageError(true); }
     })();
   }, [lists, loaded]);
 
   useEffect(() => {
     if (!loaded) return;
-    if (!hasLoadedSettingsOnce.current) {
-      hasLoadedSettingsOnce.current = true;
-      return;
-    }
+    if (!hasLoadedSettingsOnce.current) { hasLoadedSettingsOnce.current = true; return; }
     (async () => {
-      try {
-        await window.storage.set(SETTINGS_KEY, JSON.stringify(settings), false);
-      } catch (e) {
-        setStorageError(true);
-      }
+      try { await window.storage.set(SETTINGS_KEY, JSON.stringify(settings), false); }
+      catch (e) { setStorageError(true); }
     })();
   }, [settings, loaded]);
 
   useEffect(() => {
     if (!loaded) return;
-    if (!hasLoadedPointsOnce.current) {
-      hasLoadedPointsOnce.current = true;
-      return;
-    }
+    if (!hasLoadedGameOnce.current) { hasLoadedGameOnce.current = true; return; }
     (async () => {
-      try {
-        await window.storage.set(GAMIFICATION_KEY, JSON.stringify({ points }), false);
-      } catch (e) {
-        setStorageError(true);
-      }
+      try { await window.storage.set(GAMIFICATION_KEY, JSON.stringify(gameData), false); }
+      catch (e) { setStorageError(true); }
     })();
-  }, [points, loaded]);
+  }, [gameData, loaded]);
 
   const activeList = lists.find((l) => l.id === activeId) || null;
   const animated = settings.animations;
@@ -543,12 +754,7 @@ function App() {
       if (idx === -1) return prev;
       const orig = prev[idx];
       const copy = {
-        ...orig,
-        id: uid(),
-        title: orig.title + " (copia)",
-        completed: false,
-        checkOrder: [],
-        lastTotal: undefined,
+        ...orig, id: uid(), title: orig.title + " (copia)", completed: false, checkOrder: [], lastTotal: undefined,
         items: orig.items.map((it) => ({ ...it, id: uid(), checked: false })),
       };
       const next = [...prev];
@@ -569,22 +775,7 @@ function App() {
     setLists((prev) =>
       prev.map((l) =>
         l.id === listId
-          ? {
-              ...l,
-              items: [
-                ...l.items,
-                {
-                  id: uid(),
-                  title: item.title,
-                  caption: item.caption || "",
-                  qty: item.qty,
-                  price: item.price,
-                  checked: false,
-                  emoji: item.emoji || "",
-                  color: item.color || null,
-                },
-              ],
-            }
+          ? { ...l, items: [...l.items, { id: uid(), title: item.title, caption: item.caption || "", qty: item.qty, price: item.price, checked: false, emoji: item.emoji || "", color: item.color || null, discount: 0, discountActive: false }] }
           : l
       )
     );
@@ -599,14 +790,11 @@ function App() {
               items: [
                 ...l.items,
                 ...items.map((item) => ({
-                  id: uid(),
-                  title: item.title,
-                  caption: item.caption || "",
+                  id: uid(), title: item.title, caption: item.caption || "",
                   qty: item.qty === undefined || item.qty === "" ? 1 : item.qty,
                   price: item.price === undefined ? "" : item.price,
-                  checked: false,
-                  emoji: item.emoji || "",
-                  color: item.color || null,
+                  checked: false, emoji: item.emoji || "", color: item.color || null,
+                  discount: 0, discountActive: false,
                 })),
               ],
             }
@@ -616,36 +804,16 @@ function App() {
   }
 
   function editItem(listId, itemId, patch) {
-    setLists((prev) =>
-      prev.map((l) =>
-        l.id === listId ? { ...l, items: l.items.map((it) => (it.id === itemId ? { ...it, ...patch } : it)) } : l
-      )
-    );
+    setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, items: l.items.map((it) => (it.id === itemId ? { ...it, ...patch } : it)) } : l)));
   }
 
   function deleteItem(listId, itemId) {
-    setLists((prev) =>
-      prev.map((l) =>
-        l.id === listId
-          ? { ...l, items: l.items.filter((it) => it.id !== itemId), checkOrder: (l.checkOrder || []).filter((id) => id !== itemId) }
-          : l
-      )
-    );
+    setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, items: l.items.filter((it) => it.id !== itemId), checkOrder: (l.checkOrder || []).filter((id) => id !== itemId) } : l)));
   }
 
   function deleteItems(listId, itemIds) {
     const idSet = new Set(itemIds);
-    setLists((prev) =>
-      prev.map((l) =>
-        l.id === listId
-          ? {
-              ...l,
-              items: l.items.filter((it) => !idSet.has(it.id)),
-              checkOrder: (l.checkOrder || []).filter((id) => !idSet.has(id)),
-            }
-          : l
-      )
-    );
+    setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, items: l.items.filter((it) => !idSet.has(it.id)), checkOrder: (l.checkOrder || []).filter((id) => !idSet.has(id)) } : l)));
   }
 
   function toggleChecked(listId, itemId) {
@@ -656,24 +824,19 @@ function App() {
         if (!target) return l;
         const nowChecked = !target.checked;
         let checkOrder = l.checkOrder || [];
-        checkOrder = nowChecked
-          ? [...checkOrder.filter((id) => id !== itemId), itemId]
-          : checkOrder.filter((id) => id !== itemId);
+        checkOrder = nowChecked ? [...checkOrder.filter((id) => id !== itemId), itemId] : checkOrder.filter((id) => id !== itemId);
         return { ...l, checkOrder, items: l.items.map((it) => (it.id === itemId ? { ...it, checked: nowChecked } : it)) };
       })
     );
   }
 
   function listTotal(list) {
-    return list.items.reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.qty) || 0), 0);
+    return list.items.reduce((s, it) => s + itemSubtotal(it), 0);
   }
 
   function confirmComplete() {
     const list = lists.find((l) => l.id === confirmCompleteFor);
-    if (!list) {
-      setConfirmCompleteFor(null);
-      return;
-    }
+    if (!list) { setConfirmCompleteFor(null); return; }
     const total = listTotal(list);
     const prevTotal = list.lastTotal;
     let pointsEarned = 0;
@@ -682,7 +845,7 @@ function App() {
       const diffCents = Math.round((prevTotal - total) * 100);
       if (diffCents > 0) pointsEarned = Math.floor(diffCents / 10);
     }
-    if (pointsEarned > 0) setPoints((p) => p + pointsEarned);
+    if (pointsEarned > 0) setGameData((g) => ({ ...g, points: g.points + pointsEarned }));
 
     setLists((prev) =>
       prev.map((l) => {
@@ -696,22 +859,11 @@ function App() {
     setConfirmCompleteFor(null);
     setActiveId(null);
     setScreen("home");
-    setCompletionBanner({
-      title: list.title,
-      total,
-      isFirst,
-      pointsEarned,
-      diff: isFirst ? 0 : prevTotal - total,
-      showGamification: settings.gamification,
-    });
+    setCompletionBanner({ title: list.title, total, isFirst, pointsEarned, diff: isFirst ? 0 : prevTotal - total, showGamification: settings.gamification });
   }
 
   function resetForShopping(listId) {
-    setLists((prev) =>
-      prev.map((l) =>
-        l.id === listId ? { ...l, completed: false, checkOrder: [], items: l.items.map((it) => ({ ...it, checked: false })) } : l
-      )
-    );
+    setLists((prev) => prev.map((l) => (l.id === listId ? { ...l, completed: false, checkOrder: [], items: l.items.map((it) => ({ ...it, checked: false })) } : l)));
     setActiveId(listId);
     setScreen("list");
     setChoiceModalFor(null);
@@ -725,12 +877,12 @@ function App() {
 
   function openList(id) {
     const list = lists.find((l) => l.id === id);
-    if (list && list.completed) {
-      setChoiceModalFor(id);
-    } else {
-      setActiveId(id);
-      setScreen("list");
-    }
+    if (list && list.completed) setChoiceModalFor(id);
+    else { setActiveId(id); setScreen("list"); }
+  }
+
+  function purchaseBanner(id) {
+    setGameData((g) => ({ ...g, points: g.points - 100, ownedBanners: [...g.ownedBanners, id] }));
   }
 
   const styles = getStyles();
@@ -745,6 +897,7 @@ function App() {
 
   const listForChoice = lists.find((l) => l.id === choiceModalFor);
   const listForConfirm = lists.find((l) => l.id === confirmCompleteFor);
+  const listForDelete = lists.find((l) => l.id === confirmDeleteFor);
 
   return (
     <div style={styles.appShell}>
@@ -765,126 +918,99 @@ function App() {
         .anim-item-in { animation: itemIn 0.2s ease; }
         .anim-screen-in { animation: screenIn 0.22s ease; }
         .anim-panel-in { animation: panelIn 0.16s ease; }
+
+        .banner-cardboard { position:relative; background: repeating-linear-gradient(45deg, #C4915B, #C4915B 10px, #B8814C 10px, #B8814C 20px); filter: sepia(0.15) contrast(0.95) brightness(0.97); border-radius:10px; overflow:hidden; }
+        .banner-cardboard::after { content:""; position:absolute; inset:0; background: repeating-linear-gradient(90deg, rgba(0,0,0,0.05) 0 2px, transparent 2px 6px); pointer-events:none; }
+        .banner-cardboard .stampTitle { position:relative; z-index:1; display:inline-block; border:3px solid var(--banner-color, #2F6F4F); color: var(--banner-color, #2F6F4F); transform: rotate(-4deg); padding:2px 10px; border-radius:4px; background: rgba(255,255,255,0.35); font-family:'Fraunces', serif; font-weight:700; }
+
+        .banner-rust { position:relative; background: linear-gradient(160deg, #3B3E3C, #23262A 70%); border-radius:10px; overflow:hidden; }
+        .banner-rust::before { content:""; position:absolute; inset:0; background: radial-gradient(circle at 20% 30%, rgba(180,90,40,0.55), transparent 40%), radial-gradient(circle at 80% 70%, rgba(160,70,30,0.45), transparent 45%), radial-gradient(circle at 60% 15%, rgba(140,60,25,0.35), transparent 35%); mix-blend-mode: screen; pointer-events:none; }
+        .banner-rust::after { content:""; position:absolute; inset:0; background: repeating-linear-gradient(115deg, rgba(255,255,255,0.04) 0 1px, transparent 1px 8px); pointer-events:none; }
+        .banner-rust .stampTitle { position:relative; z-index:1; color: var(--banner-color, #DB8A3E); text-shadow: 0 1px 0 rgba(0,0,0,0.6), 0 -1px 0 rgba(255,255,255,0.12); font-family:'Fraunces', serif; font-weight:700; letter-spacing:0.4px; }
+
+        .banner-paper { position:relative; background: radial-gradient(circle at 75% 15%, rgba(150,110,60,0.3), transparent 42%), #F3EEDD; border-radius:10px; transform: rotate(-0.6deg); overflow:hidden; }
+        .banner-paper::after { content:""; position:absolute; left:-4px; right:-4px; bottom:-2px; height:9px; background: repeating-linear-gradient(-45deg, transparent 0 6px, #EEF0E4 6px 12px); }
+        .banner-paper .stampTitle { position:relative; z-index:1; display:inline-block; padding: 1px 5px; background: var(--banner-color, #E24B4A); color:#24312A; opacity:0.92; box-shadow: 0 0 0 100vw transparent; font-weight:600; }
+        .banner-paper .stampTitle { background-image: linear-gradient(var(--banner-color, #E24B4A), var(--banner-color, #E24B4A)); background-repeat:no-repeat; background-size: 100% 55%; background-position: 0 70%; background-color: transparent; }
       `}</style>
 
       {screen === "home" && (
-        <HomeScreen
-          key="home"
-          animated={animated}
-          styles={styles}
-          settings={settings}
-          points={points}
-          lists={lists}
-          showNewList={showNewList}
-          setShowNewList={setShowNewList}
-          newListTitle={newListTitle}
-          setNewListTitle={setNewListTitle}
-          newListColor={newListColor}
-          setNewListColor={setNewListColor}
-          createList={createList}
-          openList={openList}
-          deleteList={deleteList}
-          duplicateList={duplicateList}
-          listTotal={listTotal}
-          onOpenSettings={() => setScreen("settings")}
-        />
+        <HomeScreen key="home" animated={animated} styles={styles} t={t} settings={settings} gameData={gameData} lists={lists}
+          showNewList={showNewList} setShowNewList={setShowNewList} newListTitle={newListTitle} setNewListTitle={setNewListTitle}
+          newListColor={newListColor} setNewListColor={setNewListColor} createList={createList} openList={openList}
+          onRequestDelete={(id) => setConfirmDeleteFor(id)} duplicateList={duplicateList} listTotal={listTotal}
+          onOpenSettings={() => setScreen("settings")} onOpenPoints={() => setScreen("points")} sortOptionsAll={SORT_OPTIONS_IT} />
       )}
 
       {screen === "list" && activeList && (
-        <ListScreen
-          key={"list-" + activeList.id}
-          animated={animated}
-          styles={styles}
-          list={activeList}
-          allLists={lists}
-          settings={settings}
-          onBack={() => {
-            setScreen("home");
-            setActiveId(null);
-          }}
-          updateList={updateList}
-          addItem={addItem}
-          addItems={addItems}
-          editItem={editItem}
-          deleteItem={deleteItem}
-          deleteItems={deleteItems}
-          toggleChecked={toggleChecked}
-          onRequestComplete={() => setConfirmCompleteFor(activeList.id)}
-        />
+        <ListScreen key={"list-" + activeList.id} animated={animated} styles={styles} t={t} list={activeList} allLists={lists} settings={settings}
+          onBack={() => { setScreen("home"); setActiveId(null); }} updateList={updateList} addItem={addItem} addItems={addItems} editItem={editItem}
+          deleteItem={deleteItem} deleteItems={deleteItems} toggleChecked={toggleChecked} onRequestComplete={() => setConfirmCompleteFor(activeList.id)}
+          sortOptionsAll={SORT_OPTIONS_IT} />
       )}
 
       {screen === "settings" && (
-        <SettingsScreen
-          key="settings"
-          animated={animated}
-          styles={styles}
-          settings={settings}
-          setSettings={setSettings}
-          points={points}
-          onBack={() => setScreen("home")}
-        />
+        <SettingsScreen key="settings" animated={animated} styles={styles} t={t} settings={settings} setSettings={setSettings}
+          gameData={gameData} onBack={() => setScreen("home")} />
+      )}
+
+      {screen === "points" && (
+        <PointsScreen key="points" animated={animated} styles={styles} t={t} settings={settings} setSettings={setSettings}
+          gameData={gameData} purchaseBanner={purchaseBanner} onBack={() => setScreen("home")} />
       )}
 
       {choiceModalFor && listForChoice && (
         <ModalOverlay styles={styles} animated={animated} onClose={() => setChoiceModalFor(null)}>
           <p style={styles.modalTitle}>{listForChoice.title}</p>
-          <p style={styles.modalBody}>Questa lista è già stata completata. Cosa vuoi fare?</p>
+          <p style={styles.modalBody}>{t("alreadyCompletedBody")}</p>
           <div style={styles.modalColGap}>
-            <button style={styles.primaryBtn} onClick={() => resetForShopping(listForChoice.id)}>
-              Inizia la spesa
-            </button>
-            <button style={styles.secondaryBtn} onClick={() => openForEdit(listForChoice.id)}>
-              Modifica lista
-            </button>
-            <button style={styles.textBtn} onClick={() => setChoiceModalFor(null)}>
-              Annulla
-            </button>
+            <button style={styles.primaryBtn} onClick={() => resetForShopping(listForChoice.id)}>{t("startShopping")}</button>
+            <button style={styles.secondaryBtn} onClick={() => openForEdit(listForChoice.id)}>{t("editList")}</button>
+            <button style={styles.textBtn} onClick={() => setChoiceModalFor(null)}>{t("cancel")}</button>
           </div>
         </ModalOverlay>
       )}
 
       {confirmCompleteFor && listForConfirm && (
         <ModalOverlay styles={styles} animated={animated} onClose={() => setConfirmCompleteFor(null)}>
-          <p style={styles.modalTitle}>Completare la spesa?</p>
-          <p style={styles.modalBody}>
-            La lista "{listForConfirm.title}" verrà chiusa e il totale calcolato. Potrai comunque ricominciare più avanti.
-          </p>
+          <p style={styles.modalTitle}>{t("completeConfirmTitle")}</p>
+          <p style={styles.modalBody}>{t("completeConfirmBody")}</p>
           <div style={styles.modalColGap}>
-            <button style={styles.primaryBtn} onClick={confirmComplete}>
-              Sì, completa
-            </button>
-            <button style={styles.textBtn} onClick={() => setConfirmCompleteFor(null)}>
-              Annulla
-            </button>
+            <button style={styles.primaryBtn} onClick={confirmComplete}>{t("yesComplete")}</button>
+            <button style={styles.textBtn} onClick={() => setConfirmCompleteFor(null)}>{t("cancel")}</button>
+          </div>
+        </ModalOverlay>
+      )}
+
+      {confirmDeleteFor && listForDelete && (
+        <ModalOverlay styles={styles} animated={animated} onClose={() => setConfirmDeleteFor(null)}>
+          <p style={styles.modalTitle}>{t("deleteListConfirmTitle")}</p>
+          <p style={styles.modalBody}>"{listForDelete.title}" — {t("deleteListConfirmBody")}</p>
+          <div style={styles.modalColGap}>
+            <button style={styles.dangerBtn} onClick={() => { deleteList(listForDelete.id); setConfirmDeleteFor(null); }}>{t("yesDelete")}</button>
+            <button style={styles.textBtn} onClick={() => setConfirmDeleteFor(null)}>{t("cancel")}</button>
           </div>
         </ModalOverlay>
       )}
 
       {completionBanner && (
         <ModalOverlay styles={styles} animated={animated} onClose={() => setCompletionBanner(null)}>
-          <div style={styles.bannerIcon}>
-            <Check size={26} color="#fff" strokeWidth={3} />
-          </div>
+          <div style={styles.bannerIcon}><Check size={26} color="#fff" strokeWidth={3} /></div>
           <p style={styles.modalTitle}>{completionBanner.title}</p>
           <p style={styles.bannerTotal}>{fmtEUR(completionBanner.total)}</p>
-          <p style={styles.modalBody}>Spesa completata.</p>
+          <p style={styles.modalBody}>{t("shoppingDone")}</p>
           {completionBanner.showGamification && (
             <div style={styles.gamificationNote}>
               {completionBanner.isFirst ? (
                 <span>Primo completamento salvato come riferimento per la prossima volta.</span>
               ) : completionBanner.pointsEarned > 0 ? (
-                <span>
-                  🏆 +{completionBanner.pointsEarned} punti — hai speso {fmtEUR(completionBanner.diff)} in meno rispetto
-                  alla volta scorsa!
-                </span>
+                <span>🏆 +{completionBanner.pointsEarned} punti — hai speso {fmtEUR(completionBanner.diff)} in meno rispetto alla volta scorsa!</span>
               ) : (
-                <span>Nessun punto questa volta: la spesa non è costata meno della precedente.</span>
+                <span>{t("noPointsNote") || "Nessun punto questa volta."}</span>
               )}
             </div>
           )}
-          <button style={styles.primaryBtn} onClick={() => setCompletionBanner(null)}>
-            Chiudi
-          </button>
+          <button style={styles.primaryBtn} onClick={() => setCompletionBanner(null)}>{t("close")}</button>
         </ModalOverlay>
       )}
 
@@ -894,29 +1020,16 @@ function App() {
 }
 
 function HomeScreen({
-  animated,
-  styles,
-  settings,
-  points,
-  lists,
-  showNewList,
-  setShowNewList,
-  newListTitle,
-  setNewListTitle,
-  newListColor,
-  setNewListColor,
-  createList,
-  openList,
-  deleteList,
-  duplicateList,
-  listTotal,
-  onOpenSettings,
+  animated, styles, t, settings, gameData, lists, showNewList, setShowNewList, newListTitle, setNewListTitle,
+  newListColor, setNewListColor, createList, openList, onRequestDelete, duplicateList, listTotal, onOpenSettings, onOpenPoints, sortOptionsAll,
 }) {
   const [sortMode, setSortMode] = useState("manual");
   const [colorFilter, setColorFilter] = useState(null);
   const [showFilterMenu, setShowFilterMenu] = useState(false);
   const [swipe, setSwipe] = useState({});
   const dragRef = useRef({ id: null, startX: 0, base: 0, active: false });
+
+  const HOME_SORT = sortOptionsAll.filter((o) => o.id !== "checked");
 
   const displayedLists = useMemo(() => {
     let arr = sortLists(lists, sortMode, listTotal);
@@ -925,12 +1038,8 @@ function HomeScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lists, sortMode, colorFilter]);
 
-  function closeSwipe(id) {
-    setSwipe((s) => ({ ...s, [id]: 0 }));
-  }
-  function handlePointerDown(e, id) {
-    dragRef.current = { id, startX: e.clientX, base: swipe[id] || 0, active: true };
-  }
+  function closeSwipe(id) { setSwipe((s) => ({ ...s, [id]: 0 })); }
+  function handlePointerDown(e, id) { dragRef.current = { id, startX: e.clientX, base: swipe[id] || 0, active: true }; }
   function handlePointerMove(e) {
     if (!dragRef.current.active) return;
     const delta = e.clientX - dragRef.current.startX;
@@ -941,10 +1050,7 @@ function HomeScreen({
   function handlePointerUp() {
     if (!dragRef.current.active) return;
     const id = dragRef.current.id;
-    setSwipe((s) => {
-      const cur = s[id] || 0;
-      return { ...s, [id]: cur < -36 ? -72 : 0 };
-    });
+    setSwipe((s) => { const cur = s[id] || 0; return { ...s, [id]: cur < -36 ? -72 : 0 }; });
     dragRef.current.active = false;
   }
 
@@ -953,41 +1059,30 @@ function HomeScreen({
       <header style={styles.header}>
         <div style={styles.headerRow}>
           <ShoppingCart size={22} color={styles.colors.green} />
-          <h1 style={styles.h1}>Le mie liste</h1>
+          <h1 style={styles.h1}>{t("appTitle")}</h1>
           {settings.gamification && (
-            <span style={styles.pointsBadge}>
-              <Trophy size={13} /> {points}
-            </span>
+            <button style={styles.pointsBadge} onClick={onOpenPoints}>
+              <Trophy size={13} /> {gameData.points}
+            </button>
           )}
-          <button style={styles.iconBtnGhost} onClick={onOpenSettings} aria-label="Impostazioni">
+          <button style={styles.iconBtnGhost} onClick={onOpenPoints} aria-label={t("pointsTitle")}>
+            <Gem size={18} color={styles.colors.muted} />
+          </button>
+          <button style={styles.iconBtnGhost} onClick={onOpenSettings} aria-label={t("settingsTitle")}>
             <SettingsIcon size={19} color={styles.colors.muted} />
           </button>
         </div>
-        <p style={styles.subtitle}>
-          {lists.length === 0 ? "Nessuna lista ancora, creane una." : `${lists.length} ${lists.length === 1 ? "lista" : "liste"}`}
-        </p>
+        <p style={styles.subtitle}>{lists.length === 0 ? "Nessuna lista ancora, creane una." : `${lists.length} ${lists.length === 1 ? "lista" : "liste"}`}</p>
       </header>
 
       <div style={styles.toolbarRow}>
         <div style={{ position: "relative" }}>
-          <button
-            style={{ ...styles.toolbarBtn, ...(showFilterMenu ? styles.toolbarBtnActive : {}) }}
-            onClick={() => setShowFilterMenu((v) => !v)}
-            aria-label="Filtra liste"
-          >
+          <button style={{ ...styles.toolbarBtn, ...(showFilterMenu ? styles.toolbarBtnActive : {}) }} onClick={() => setShowFilterMenu((v) => !v)} aria-label={t("filterBtn")}>
             <SlidersHorizontal size={16} />
-            <span style={{ fontSize: 12.5, marginLeft: 6 }}>Filtra</span>
+            <span style={{ fontSize: 12.5, marginLeft: 6 }}>{t("filterBtn")}</span>
           </button>
           {showFilterMenu && (
-            <FilterDropdown
-              styles={styles}
-              animated={animated}
-              sortOptions={HOME_SORT_OPTIONS}
-              sortMode={sortMode}
-              setSortMode={setSortMode}
-              colorFilter={colorFilter}
-              setColorFilter={setColorFilter}
-            />
+            <FilterDropdown styles={styles} animated={animated} sortOptions={HOME_SORT} sortMode={sortMode} setSortMode={setSortMode} colorFilter={colorFilter} setColorFilter={setColorFilter} />
           )}
         </div>
       </div>
@@ -996,9 +1091,7 @@ function HomeScreen({
         {displayedLists.length === 0 && !showNewList && (
           <div style={styles.emptyState}>
             <p style={styles.emptyTitle}>{lists.length === 0 ? "Il carrello è vuoto" : "Nessun risultato"}</p>
-            <p style={styles.emptyBody}>
-              {lists.length === 0 ? "Crea la tua prima lista della spesa per iniziare." : "Prova un altro filtro."}
-            </p>
+            <p style={styles.emptyBody}>{lists.length === 0 ? "Crea la tua prima lista della spesa per iniziare." : "Prova un altro filtro."}</p>
           </div>
         )}
 
@@ -1007,60 +1100,60 @@ function HomeScreen({
           const done = l.items.filter((it) => it.checked).length;
           const offset = swipe[l.id] || 0;
           const dragging = dragRef.current.active && dragRef.current.id === l.id;
+          const bannerActive = settings.bannerStyle && settings.bannerStyle !== "default";
           return (
             <div key={l.id} style={styles.swipeWrap} className={animated ? "anim-card-in" : ""}>
               <div style={styles.swipeActions}>
-                <button
-                  style={styles.swipeActionDuplicate}
-                  onClick={() => {
-                    duplicateList(l.id);
-                    closeSwipe(l.id);
-                  }}
-                  aria-label="Duplica lista"
-                >
+                <button style={styles.swipeActionDuplicate} onClick={() => { duplicateList(l.id); closeSwipe(l.id); }} aria-label="Duplica lista">
                   <Copy size={16} color="#fff" />
                   <span style={{ fontSize: 10, color: "#fff" }}>Duplica</span>
                 </button>
               </div>
               <div
-                style={{
-                  ...styles.ticketCard,
-                  transform: `translateX(${offset}px)`,
-                  transition: dragging ? "none" : "transform 0.2s ease",
-                }}
+                style={{ ...styles.ticketCard, transform: `translateX(${offset}px)`, transition: dragging ? "none" : "transform 0.2s ease" }}
                 onClick={() => (offset !== 0 ? closeSwipe(l.id) : openList(l.id))}
-                onPointerDown={(e) => handlePointerDown(e, l.id)}
-                onPointerMove={handlePointerMove}
-                onPointerUp={handlePointerUp}
-                onPointerCancel={handlePointerUp}
+                onPointerDown={(e) => handlePointerDown(e, l.id)} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp}
               >
-                <div style={styles.ticketTornEdge} />
-                <div style={styles.ticketBody}>
-                  <div style={styles.ticketRow}>
-                    <ColorTag styles={styles} color={l.color} mode={settings.colorStyle}>
-                      <span style={styles.ticketTitle}>{l.title}</span>
-                    </ColorTag>
-                    <div style={styles.rowGapSm}>
-                      {l.completed && <span style={styles.completedBadge}>Completata</span>}
-                      <button
-                        style={styles.iconBtnGhost}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          deleteList(l.id);
-                        }}
-                        aria-label="Elimina lista"
-                      >
-                        <Trash2 size={16} color={styles.colors.muted} />
-                      </button>
+                {bannerActive ? (
+                  <div className={BANNER_STYLES.find((b) => b.id === settings.bannerStyle)?.className} style={{ "--banner-color": l.color || "#2F6F4F" }}>
+                    <div style={styles.ticketBody}>
+                      <div style={styles.ticketRow}>
+                        <span className="stampTitle" style={styles.ticketTitle}>{l.title}</span>
+                        <div style={styles.rowGapSm}>
+                          {l.completed && <span style={styles.completedBadge}>{t("completedBadge")}</span>}
+                          <button style={styles.iconBtnGhost} onClick={(e) => { e.stopPropagation(); onRequestDelete(l.id); }} aria-label={t("delete")}>
+                            <Trash2 size={16} color={styles.colors.muted} />
+                          </button>
+                        </div>
+                      </div>
+                      <div style={styles.ticketMeta}>
+                        <span>{done}/{l.items.length} {t("spuntati")}</span>
+                        <span style={styles.ticketTotal}>{fmtEUR(total)}</span>
+                      </div>
                     </div>
                   </div>
-                  <div style={styles.ticketMeta}>
-                    <span>
-                      {done}/{l.items.length} spuntati
-                    </span>
-                    <span style={styles.ticketTotal}>{fmtEUR(total)}</span>
-                  </div>
-                </div>
+                ) : (
+                  <>
+                    <div style={styles.ticketTornEdge} />
+                    <div style={styles.ticketBody}>
+                      <div style={styles.ticketRow}>
+                        <ColorTag styles={styles} color={l.color} mode={settings.colorStyle}>
+                          <span style={styles.ticketTitle}>{l.title}</span>
+                        </ColorTag>
+                        <div style={styles.rowGapSm}>
+                          {l.completed && <span style={styles.completedBadge}>{t("completedBadge")}</span>}
+                          <button style={styles.iconBtnGhost} onClick={(e) => { e.stopPropagation(); onRequestDelete(l.id); }} aria-label={t("delete")}>
+                            <Trash2 size={16} color={styles.colors.muted} />
+                          </button>
+                        </div>
+                      </div>
+                      <div style={styles.ticketMeta}>
+                        <span>{done}/{l.items.length} {t("spuntati")}</span>
+                        <span style={styles.ticketTotal}>{fmtEUR(total)}</span>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           );
@@ -1069,32 +1162,20 @@ function HomeScreen({
 
       {showNewList ? (
         <div style={styles.newListBox} className={animated ? "anim-panel-in" : ""}>
-          <input
-            autoFocus
-            style={styles.input}
-            placeholder="Titolo della lista (es. Spesa settimanale)"
-            value={newListTitle}
+          <input autoFocus style={styles.input} placeholder="Titolo della lista (es. Spesa settimanale)" value={newListTitle}
             onChange={(e) => setNewListTitle(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") createList();
-              if (e.key === "Escape") setShowNewList(false);
-            }}
-          />
+            onKeyDown={(e) => { if (e.key === "Enter") createList(); if (e.key === "Escape") setShowNewList(false); }} />
           <div>
             <p style={styles.fieldLabel}>Colore della lista</p>
             <ColorSwatchRow styles={styles} value={newListColor} onChange={setNewListColor} allowNone={false} />
           </div>
           <div style={styles.rowGap}>
-            <button style={styles.primaryBtn} onClick={createList}>
-              Crea lista
-            </button>
-            <button style={styles.secondaryBtn} onClick={() => setShowNewList(false)}>
-              Annulla
-            </button>
+            <button style={styles.primaryBtn} onClick={createList}>{t("createList")}</button>
+            <button style={styles.secondaryBtn} onClick={() => setShowNewList(false)}>{t("cancel")}</button>
           </div>
         </div>
       ) : (
-        <button style={styles.fab} onClick={() => setShowNewList(true)} aria-label="Nuova lista">
+        <button style={styles.fab} onClick={() => setShowNewList(true)} aria-label={t("newList")}>
           <Plus size={22} color="#fff" />
         </button>
       )}
@@ -1102,82 +1183,74 @@ function HomeScreen({
   );
 }
 
-function SettingsScreen({ animated, styles, settings, setSettings, points, onBack }) {
+function SettingsScreen({ animated, styles, t, settings, setSettings, gameData, onBack }) {
+  const ownedBanners = gameData.ownedBanners || [];
   return (
     <div style={styles.screen} className={animated ? "anim-screen-in" : ""}>
       <header style={styles.header}>
         <div style={styles.headerRow}>
-          <button style={styles.iconBtnGhost} onClick={onBack} aria-label="Indietro">
+          <button style={styles.iconBtnGhost} onClick={onBack} aria-label={t("back")}>
             <ArrowLeft size={20} color={styles.colors.ink} />
           </button>
-          <h1 style={styles.h1}>Impostazioni</h1>
+          <h1 style={styles.h1}>{t("settingsTitle")}</h1>
         </div>
       </header>
 
       <div style={styles.receipt}>
         <div style={styles.settingsRow}>
           <div>
-            <div style={styles.settingsLabel}>Barra gli elementi spuntati</div>
+            <div style={styles.settingsLabel}>{t("strikethroughLabel")}</div>
             <div style={styles.settingsHint}>Quando attivo, un elemento spuntato appare sbiadito al 50% e con una riga sopra.</div>
           </div>
-          <button
-            style={{ ...styles.toggle, ...(settings.strikethrough ? styles.toggleOn : {}) }}
-            onClick={() => setSettings((s) => ({ ...s, strikethrough: !s.strikethrough }))}
-            aria-label="Attiva o disattiva la barratura"
-          >
+          <button style={{ ...styles.toggle, ...(settings.strikethrough ? styles.toggleOn : {}) }} onClick={() => setSettings((s) => ({ ...s, strikethrough: !s.strikethrough }))} aria-label="toggle">
             <span style={{ ...styles.toggleKnob, ...(settings.strikethrough ? styles.toggleKnobOn : {}) }} />
           </button>
         </div>
         <PerforatedDivider />
         <div style={styles.settingsRow}>
           <div>
-            <div style={styles.settingsLabel}>Animazioni</div>
+            <div style={styles.settingsLabel}>{t("animationsLabel")}</div>
             <div style={styles.settingsHint}>Transizioni ed effetti dinamici per liste, popup e articoli.</div>
           </div>
-          <button
-            style={{ ...styles.toggle, ...(settings.animations ? styles.toggleOn : {}) }}
-            onClick={() => setSettings((s) => ({ ...s, animations: !s.animations }))}
-            aria-label="Attiva o disattiva le animazioni"
-          >
+          <button style={{ ...styles.toggle, ...(settings.animations ? styles.toggleOn : {}) }} onClick={() => setSettings((s) => ({ ...s, animations: !s.animations }))} aria-label="toggle">
             <span style={{ ...styles.toggleKnob, ...(settings.animations ? styles.toggleKnobOn : {}) }} />
           </button>
         </div>
         <PerforatedDivider />
         <div style={styles.settingsRow}>
           <div>
-            <div style={styles.settingsLabel}>Gamification</div>
-            <div style={styles.settingsHint}>
-              Guadagna punti quando spendi meno rispetto alla spesa precedente. Disattivandola non perdi i punti già
-              accumulati.
-            </div>
+            <div style={styles.settingsLabel}>{t("gamificationLabel")}</div>
+            <div style={styles.settingsHint}>Guadagna punti quando spendi meno rispetto alla spesa precedente. Disattivandola non perdi i punti già accumulati.</div>
           </div>
-          <button
-            style={{ ...styles.toggle, ...(settings.gamification ? styles.toggleOn : {}) }}
-            onClick={() => setSettings((s) => ({ ...s, gamification: !s.gamification }))}
-            aria-label="Attiva o disattiva la gamification"
-          >
+          <button style={{ ...styles.toggle, ...(settings.gamification ? styles.toggleOn : {}) }} onClick={() => setSettings((s) => ({ ...s, gamification: !s.gamification }))} aria-label="toggle">
             <span style={{ ...styles.toggleKnob, ...(settings.gamification ? styles.toggleKnobOn : {}) }} />
           </button>
         </div>
         {settings.gamification && (
-          <div style={styles.pointsSummary}>
-            <Trophy size={15} color={styles.colors.green} />
-            <span>{points} punti accumulati finora</span>
-          </div>
+          <div style={styles.pointsSummary}><Trophy size={15} color={styles.colors.green} /><span>{gameData.points} punti accumulati finora</span></div>
         )}
       </div>
 
-      <p style={{ ...styles.fieldLabel, marginTop: 18 }}>Stile dei colori (liste e articoli)</p>
+      <p style={{ ...styles.fieldLabel, marginTop: 18 }}>{t("languageTitle")}</p>
+      <div style={styles.receipt}>
+        {LANGUAGES.map((l, idx) => (
+          <React.Fragment key={l.id}>
+            <button style={{ ...styles.colorStyleRow, ...(settings.language === l.id ? styles.colorStyleRowActive : {}) }} onClick={() => setSettings((s) => ({ ...s, language: l.id }))}>
+              <span style={{ fontSize: 20 }}>{l.flag}</span>
+              <span style={styles.colorStyleLabel}>{l.label}</span>
+              {settings.language === l.id && <Check size={15} color={styles.colors.green} />}
+            </button>
+            {idx < LANGUAGES.length - 1 && <PerforatedDivider />}
+          </React.Fragment>
+        ))}
+      </div>
+
+      <p style={{ ...styles.fieldLabel, marginTop: 18 }}>{t("colorStyleTitle")}</p>
       <div style={styles.receipt}>
         {COLOR_STYLE_OPTIONS.map((opt, idx) => (
           <React.Fragment key={opt.id}>
-            <button
-              style={{ ...styles.colorStyleRow, ...(settings.colorStyle === opt.id ? styles.colorStyleRowActive : {}) }}
-              onClick={() => setSettings((s) => ({ ...s, colorStyle: opt.id }))}
-            >
-              <ColorTag styles={styles} color={COLOR_PALETTE[0]} mode={opt.id} small>
-                Esempio
-              </ColorTag>
+            <button style={{ ...styles.colorStyleRow, ...(settings.colorStyle === opt.id ? styles.colorStyleRowActive : {}) }} onClick={() => setSettings((s) => ({ ...s, colorStyle: opt.id }))}>
+              <ColorTag styles={styles} color={COLOR_PALETTE[0]} mode={opt.id} small>Esempio</ColorTag>
               <span style={styles.colorStyleLabel}>{opt.label}</span>
               {settings.colorStyle === opt.id && <Check size={15} color={styles.colors.green} />}
             </button>
@@ -1185,6 +1258,123 @@ function SettingsScreen({ animated, styles, settings, setSettings, points, onBac
           </React.Fragment>
         ))}
       </div>
+
+      <p style={{ ...styles.fieldLabel, marginTop: 18 }}>{t("bannerStyleTitle")}</p>
+      <div style={styles.receipt}>
+        <button style={{ ...styles.colorStyleRow, ...(settings.bannerStyle === "default" ? styles.colorStyleRowActive : {}) }} onClick={() => setSettings((s) => ({ ...s, bannerStyle: "default" }))}>
+          <span style={styles.colorStyleLabel}>{t("bannerStyleDefault")}</span>
+          {settings.bannerStyle === "default" && <Check size={15} color={styles.colors.green} />}
+        </button>
+        {ownedBanners.length === 0 ? (
+          <>
+            <PerforatedDivider />
+            <p style={{ ...styles.settingsHint, padding: "10px 4px" }}>{t("bannerStyleHint")}</p>
+          </>
+        ) : (
+          BANNER_STYLES.filter((b) => ownedBanners.includes(b.id)).map((b) => (
+            <React.Fragment key={b.id}>
+              <PerforatedDivider />
+              <button style={{ ...styles.colorStyleRow, ...(settings.bannerStyle === b.id ? styles.colorStyleRowActive : {}) }} onClick={() => setSettings((s) => ({ ...s, bannerStyle: b.id }))}>
+                <div style={{ width: 70, borderRadius: 6, overflow: "hidden" }}>
+                  <BannerPreview id={b.id} color={COLOR_PALETTE[0]} title="Es" />
+                </div>
+                <span style={styles.colorStyleLabel}>{b.name}</span>
+                {settings.bannerStyle === b.id && <Check size={15} color={styles.colors.green} />}
+              </button>
+            </React.Fragment>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function PointsScreen({ animated, styles, t, settings, setSettings, gameData, purchaseBanner, onBack }) {
+  const [purchaseConfirmFor, setPurchaseConfirmFor] = useState(null);
+  const [applyPromptFor, setApplyPromptFor] = useState(null);
+  const owned = gameData.ownedBanners || [];
+
+  function confirmPurchase() {
+    purchaseBanner(purchaseConfirmFor);
+    const id = purchaseConfirmFor;
+    setPurchaseConfirmFor(null);
+    setApplyPromptFor(id);
+  }
+  function applyNow() {
+    setSettings((s) => ({ ...s, bannerStyle: applyPromptFor }));
+    setApplyPromptFor(null);
+  }
+
+  const pendingItem = BANNER_STYLES.find((b) => b.id === purchaseConfirmFor);
+
+  return (
+    <div style={styles.screen} className={animated ? "anim-screen-in" : ""}>
+      <header style={styles.header}>
+        <div style={styles.headerRow}>
+          <button style={styles.iconBtnGhost} onClick={onBack} aria-label={t("back")}>
+            <ArrowLeft size={20} color={styles.colors.ink} />
+          </button>
+          <h1 style={styles.h1}>{t("pointsTitle")}</h1>
+        </div>
+      </header>
+
+      <div style={styles.pointsHero}>
+        <Trophy size={30} color="#9A6B0C" />
+        <div style={styles.pointsHeroLabel}>{t("yourBalance")}</div>
+        <div style={styles.pointsHeroValue}>{gameData.points}</div>
+      </div>
+
+      <p style={{ ...styles.fieldLabel, marginTop: 18 }}>{t("shopTitle")}</p>
+      <div style={styles.shopGrid}>
+        {BANNER_STYLES.map((b) => {
+          const isOwned = owned.includes(b.id);
+          const canAfford = gameData.points >= b.cost;
+          const isApplied = settings.bannerStyle === b.id;
+          return (
+            <div key={b.id} style={styles.shopCard}>
+              <div style={{ borderRadius: 8, overflow: "hidden", marginBottom: 8 }}>
+                <BannerPreview id={b.id} color={COLOR_PALETTE[1]} title="Spesa" />
+              </div>
+              <div style={styles.shopCardTitle}>{b.name}</div>
+              <div style={styles.shopCardDesc}>{b.desc}</div>
+              {isOwned ? (
+                <button
+                  style={{ ...styles.secondaryBtn, ...(isApplied ? styles.toolbarBtnActive : {}) }}
+                  onClick={() => setSettings((s) => ({ ...s, bannerStyle: isApplied ? "default" : b.id }))}
+                >
+                  {isApplied ? `✓ ${t("applied")}` : t("apply")}
+                </button>
+              ) : (
+                <button style={styles.primaryBtn} disabled={!canAfford} onClick={() => setPurchaseConfirmFor(b.id)}>
+                  {canAfford ? `${t("buy")} — ${b.cost} pt` : t("notEnoughPoints")}
+                </button>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {purchaseConfirmFor && pendingItem && (
+        <ModalOverlay styles={styles} animated={animated} onClose={() => setPurchaseConfirmFor(null)}>
+          <p style={styles.modalTitle}>{t("purchaseConfirmTitle")}</p>
+          <p style={styles.modalBody}>{pendingItem.name} — {pendingItem.cost} pt</p>
+          <div style={styles.modalColGap}>
+            <button style={styles.primaryBtn} onClick={confirmPurchase}>{t("yes")}</button>
+            <button style={styles.textBtn} onClick={() => setPurchaseConfirmFor(null)}>{t("no")}</button>
+          </div>
+        </ModalOverlay>
+      )}
+
+      {applyPromptFor && (
+        <ModalOverlay styles={styles} animated={animated} onClose={() => setApplyPromptFor(null)}>
+          <p style={styles.modalTitle}>{t("applyPromptTitle")}</p>
+          <p style={styles.modalBody}>{t("applyPromptBody")}</p>
+          <div style={styles.modalColGap}>
+            <button style={styles.primaryBtn} onClick={applyNow}>{t("yes")}</button>
+            <button style={styles.textBtn} onClick={() => setApplyPromptFor(null)}>{t("no")}</button>
+          </div>
+        </ModalOverlay>
+      )}
     </div>
   );
 }
@@ -1192,20 +1382,7 @@ function SettingsScreen({ animated, styles, settings, setSettings, points, onBac
 const EMPTY_FORM = { title: "", caption: "", qty: "1", price: "", emoji: "", color: null };
 
 function ListScreen({
-  animated,
-  styles,
-  list,
-  allLists,
-  settings,
-  onBack,
-  updateList,
-  addItem,
-  addItems,
-  editItem,
-  deleteItem,
-  deleteItems,
-  toggleChecked,
-  onRequestComplete,
+  animated, styles, t, list, allLists, settings, onBack, updateList, addItem, addItems, editItem, deleteItem, deleteItems, toggleChecked, onRequestComplete, sortOptionsAll,
 }) {
   const [editingTitle, setEditingTitle] = useState(false);
   const [titleDraft, setTitleDraft] = useState(list.title);
@@ -1222,6 +1399,8 @@ function ListScreen({
   const [qtyModalFor, setQtyModalFor] = useState(null);
   const [editingEmojiId, setEditingEmojiId] = useState(null);
   const [emojiDraft, setEmojiDraft] = useState("");
+  const [discountModalFor, setDiscountModalFor] = useState(null);
+  const discountClickTimers = useRef({});
 
   const [swipe, setSwipe] = useState({});
   const dragRef = useRef({ id: null, startX: 0, base: 0, active: false });
@@ -1247,7 +1426,7 @@ function ListScreen({
   const [textParsed, setTextParsed] = useState([]);
   const fileInputRef = useRef(null);
 
-  const total = list.items.reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.qty) || 0), 0);
+  const total = list.items.reduce((s, it) => s + itemSubtotal(it), 0);
 
   const displayedItems = useMemo(() => {
     let arr = sortItems(list.items, list.checkOrder, sortMode);
@@ -1276,84 +1455,31 @@ function ListScreen({
   const quickSelectedCount = Object.values(quickSelected).filter(Boolean).length;
 
   function saveTitle() {
-    const t = titleDraft.trim() || "Lista senza nome";
-    updateList(list.id, { title: t });
+    const tt = titleDraft.trim() || "Lista senza nome";
+    updateList(list.id, { title: tt });
     setEditingTitle(false);
   }
-
   function onTitleFormChange(v) {
-    setForm((f) => {
-      const next = { ...f, title: v };
-      if (!emojiTouched) next.emoji = suggestEmoji(v);
-      return next;
-    });
+    setForm((f) => { const next = { ...f, title: v }; if (!emojiTouched) next.emoji = suggestEmoji(v); return next; });
   }
-
-  function openAddForm() {
-    setForm(EMPTY_FORM);
-    setEmojiTouched(false);
-    setFormMode("add");
-    setEditingItemId(null);
-    setShowAddForm(true);
-  }
-
+  function openAddForm() { setForm(EMPTY_FORM); setEmojiTouched(false); setFormMode("add"); setEditingItemId(null); setShowAddForm(true); }
   function openEditForm(it) {
-    setForm({
-      title: it.title,
-      caption: it.caption || "",
-      qty: String(it.qty),
-      price: it.price === "" || it.price === undefined ? "" : String(it.price),
-      emoji: it.emoji || "",
-      color: it.color || null,
-    });
-    setEmojiTouched(true);
-    setFormMode("edit");
-    setEditingItemId(it.id);
-    setShowAddForm(true);
-    closeSwipe(it.id);
+    setForm({ title: it.title, caption: it.caption || "", qty: String(it.qty), price: it.price === "" || it.price === undefined ? "" : String(it.price), emoji: it.emoji || "", color: it.color || null });
+    setEmojiTouched(true); setFormMode("edit"); setEditingItemId(it.id); setShowAddForm(true); closeSwipe(it.id);
   }
-
-  function closeForm() {
-    setShowAddForm(false);
-    setForm(EMPTY_FORM);
-    setEmojiTouched(false);
-    setFormMode("add");
-    setEditingItemId(null);
-  }
-
+  function closeForm() { setShowAddForm(false); setForm(EMPTY_FORM); setEmojiTouched(false); setFormMode("add"); setEditingItemId(null); }
   function submitForm() {
     if (!form.title.trim()) return;
-    const payload = {
-      title: form.title.trim(),
-      caption: form.caption.trim(),
-      qty: form.qty === "" ? 1 : Number(form.qty),
-      price: form.price === "" ? "" : Number(form.price),
-      emoji: form.emoji,
-      color: form.color,
-    };
+    const payload = { title: form.title.trim(), caption: form.caption.trim(), qty: form.qty === "" ? 1 : Number(form.qty), price: form.price === "" ? "" : Number(form.price), emoji: form.emoji, color: form.color };
     if (formMode === "edit" && editingItemId) editItem(list.id, editingItemId, payload);
     else addItem(list.id, payload);
     closeForm();
   }
-
-  function commitPrice(itemId) {
-    const val = priceDraft.trim();
-    editItem(list.id, itemId, { price: val === "" ? "" : Number(val) });
-    setEditingPriceId(null);
-  }
-  function commitEmoji(itemId) {
-    editItem(list.id, itemId, { emoji: emojiDraft.trim().slice(0, 4) });
-    setEditingEmojiId(null);
-  }
-  function addSuggestion(sug) {
-    addItem(list.id, { title: sug.title, caption: "", qty: 1, price: "", emoji: sug.emoji, color: sug.color });
-  }
-  function closeSwipe(id) {
-    setSwipe((s) => ({ ...s, [id]: 0 }));
-  }
-  function handlePointerDown(e, id) {
-    dragRef.current = { id, startX: e.clientX, base: swipe[id] || 0, active: true };
-  }
+  function commitPrice(itemId) { const val = priceDraft.trim(); editItem(list.id, itemId, { price: val === "" ? "" : Number(val) }); setEditingPriceId(null); }
+  function commitEmoji(itemId) { editItem(list.id, itemId, { emoji: emojiDraft.trim().slice(0, 4) }); setEditingEmojiId(null); }
+  function addSuggestion(sug) { addItem(list.id, { title: sug.title, caption: "", qty: 1, price: "", emoji: sug.emoji, color: sug.color }); }
+  function closeSwipe(id) { setSwipe((s) => ({ ...s, [id]: 0 })); }
+  function handlePointerDown(e, id) { dragRef.current = { id, startX: e.clientX, base: swipe[id] || 0, active: true }; }
   function handlePointerMove(e) {
     if (!dragRef.current.active) return;
     const delta = e.clientX - dragRef.current.startX;
@@ -1364,69 +1490,54 @@ function ListScreen({
   function handlePointerUp() {
     if (!dragRef.current.active) return;
     const id = dragRef.current.id;
-    setSwipe((s) => {
-      const cur = s[id] || 0;
-      return { ...s, [id]: cur < -48 ? -96 : 0 };
-    });
+    setSwipe((s) => { const cur = s[id] || 0; return { ...s, [id]: cur < -48 ? -96 : 0 }; });
     dragRef.current.active = false;
   }
 
-  // --- Import from another list ---
-  function openImport() {
-    setImportOpen(true);
-    setImportStep("pick-list");
-    setImportSourceId(null);
-    setImportSelected({});
+  function handleDiscountClick(it) {
+    const id = it.id;
+    if (discountClickTimers.current[id]) {
+      clearTimeout(discountClickTimers.current[id]);
+      delete discountClickTimers.current[id];
+      setDiscountModalFor(id);
+    } else {
+      discountClickTimers.current[id] = setTimeout(() => {
+        const turningOn = !it.discountActive;
+        editItem(list.id, id, { discountActive: turningOn, discount: turningOn && !it.discount ? 10 : it.discount });
+        delete discountClickTimers.current[id];
+      }, 280);
+    }
   }
+  function commitDiscount(itemId, value) {
+    editItem(list.id, itemId, { discount: value, discountActive: value > 0 });
+    setDiscountModalFor(null);
+  }
+
+  function openImport() { setImportOpen(true); setImportStep("pick-list"); setImportSourceId(null); setImportSelected({}); }
   function pickImportSource(id) {
     const src = allLists.find((l) => l.id === id);
     const sel = {};
     (src ? src.items : []).forEach((it) => (sel[it.id] = true));
-    setImportSourceId(id);
-    setImportSelected(sel);
-    setImportStep("pick-items");
+    setImportSourceId(id); setImportSelected(sel); setImportStep("pick-items");
   }
-  function toggleImportItem(id) {
-    setImportSelected((s) => ({ ...s, [id]: !s[id] }));
-  }
+  function toggleImportItem(id) { setImportSelected((s) => ({ ...s, [id]: !s[id] })); }
   function confirmImport() {
     if (!importSourceList) return;
     const chosen = importSourceList.items.filter((it) => importSelected[it.id]);
-    if (chosen.length > 0) {
-      addItems(
-        list.id,
-        chosen.map((it) => ({ title: it.title, caption: it.caption, qty: it.qty, price: it.price, emoji: it.emoji, color: it.color }))
-      );
-    }
+    if (chosen.length > 0) addItems(list.id, chosen.map((it) => ({ title: it.title, caption: it.caption, qty: it.qty, price: it.price, emoji: it.emoji, color: it.color })));
     setImportOpen(false);
   }
 
-  // --- Quick check (bulk remove) ---
-  function openQuickCheck() {
-    setQuickOpen(true);
-    setQuickStep("select");
-    setQuickSelected({});
-  }
-  function toggleQuickItem(id) {
-    setQuickSelected((s) => ({ ...s, [id]: !s[id] }));
-  }
-  function proceedQuickCheck() {
-    if (quickSelectedCount === 0) return;
-    setQuickStep("confirm");
-  }
+  function openQuickCheck() { setQuickOpen(true); setQuickStep("select"); setQuickSelected({}); }
+  function toggleQuickItem(id) { setQuickSelected((s) => ({ ...s, [id]: !s[id] })); }
+  function proceedQuickCheck() { if (quickSelectedCount === 0) return; setQuickStep("confirm"); }
   function confirmQuickDelete() {
     const ids = Object.keys(quickSelected).filter((id) => quickSelected[id]);
     if (ids.length > 0) deleteItems(list.id, ids);
     setQuickOpen(false);
   }
 
-  // --- Add from text / file ---
-  function openTextAdd() {
-    setTextOpen(true);
-    setTextStep("input");
-    setTextValue("");
-    setTextParsed([]);
-  }
+  function openTextAdd() { setTextOpen(true); setTextStep("input"); setTextValue(""); setTextParsed([]); }
   function handleFileChange(e) {
     const file = e.target.files && e.target.files[0];
     if (!file) return;
@@ -1436,46 +1547,28 @@ function ListScreen({
     e.target.value = "";
   }
   function proceedTextAdd() {
-    const lines = textValue
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean);
+    const lines = textValue.split("\n").map((l) => l.trim()).filter(Boolean);
     if (lines.length === 0) return;
-    setTextParsed(lines);
-    setTextStep("confirm");
+    setTextParsed(lines); setTextStep("confirm");
   }
   function confirmTextAdd() {
-    addItems(
-      list.id,
-      textParsed.map((line) => ({ title: line, caption: "", qty: 1, price: "", emoji: suggestEmoji(line), color: null }))
-    );
+    addItems(list.id, textParsed.map((line) => ({ title: line, caption: "", qty: 1, price: "", emoji: suggestEmoji(line), color: null })));
     setTextOpen(false);
   }
+
+  const discountModalItem = list.items.find((it) => it.id === discountModalFor);
 
   return (
     <div style={styles.screen} className={animated ? "anim-screen-in" : ""}>
       <header style={styles.header}>
         <div style={styles.headerRow}>
-          <button style={styles.iconBtnGhost} onClick={onBack} aria-label="Indietro">
+          <button style={styles.iconBtnGhost} onClick={onBack} aria-label={t("back")}>
             <ArrowLeft size={20} color={styles.colors.ink} />
           </button>
           {editingTitle ? (
-            <input
-              autoFocus
-              style={{ ...styles.input, flex: 1, margin: 0 }}
-              value={titleDraft}
-              onChange={(e) => setTitleDraft(e.target.value)}
-              onBlur={saveTitle}
-              onKeyDown={(e) => e.key === "Enter" && saveTitle()}
-            />
+            <input autoFocus style={{ ...styles.input, flex: 1, margin: 0 }} value={titleDraft} onChange={(e) => setTitleDraft(e.target.value)} onBlur={saveTitle} onKeyDown={(e) => e.key === "Enter" && saveTitle()} />
           ) : (
-            <div
-              style={{ flex: 1 }}
-              onClick={() => {
-                setTitleDraft(list.title);
-                setEditingTitle(true);
-              }}
-            >
+            <div style={{ flex: 1 }} onClick={() => { setTitleDraft(list.title); setEditingTitle(true); }}>
               <ColorTag styles={styles} color={list.color} mode={settings.colorStyle}>
                 <span style={styles.h1}>{list.title}</span>
               </ColorTag>
@@ -1484,26 +1577,11 @@ function ListScreen({
           <button style={styles.iconBtnGhost} onClick={() => setEditingColor((v) => !v)} aria-label="Cambia colore lista">
             <Palette size={17} color={styles.colors.muted} />
           </button>
-          <Pencil
-            size={15}
-            color={styles.colors.muted}
-            onClick={() => {
-              setTitleDraft(list.title);
-              setEditingTitle(true);
-            }}
-          />
+          <Pencil size={15} color={styles.colors.muted} onClick={() => { setTitleDraft(list.title); setEditingTitle(true); }} />
         </div>
         {editingColor && (
           <div style={{ marginTop: 8, marginLeft: 30 }} className={animated ? "anim-panel-in" : ""}>
-            <ColorSwatchRow
-              styles={styles}
-              value={list.color}
-              onChange={(c) => {
-                updateList(list.id, { color: c });
-                setEditingColor(false);
-              }}
-              allowNone={false}
-            />
+            <ColorSwatchRow styles={styles} value={list.color} onChange={(c) => { updateList(list.id, { color: c }); setEditingColor(false); }} allowNone={false} />
           </div>
         )}
       </header>
@@ -1511,63 +1589,28 @@ function ListScreen({
       <div style={styles.toolbarRow}>
         <div style={styles.searchBox}>
           <Search size={15} color={styles.colors.muted} />
-          <input
-            style={styles.searchInput}
-            placeholder="Cerca per nome o emote"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
+          <input style={styles.searchInput} placeholder="Cerca per nome o emote" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
           {searchQuery && (
-            <button style={styles.iconBtnGhost} onClick={() => setSearchQuery("")} aria-label="Cancella ricerca">
-              <X size={14} color={styles.colors.muted} />
-            </button>
+            <button style={styles.iconBtnGhost} onClick={() => setSearchQuery("")} aria-label="Cancella ricerca"><X size={14} color={styles.colors.muted} /></button>
           )}
         </div>
         <div style={{ position: "relative" }}>
-          <button
-            style={{ ...styles.toolbarBtn, ...(showFilterMenu ? styles.toolbarBtnActive : {}) }}
-            onClick={() => {
-              setShowFilterMenu((v) => !v);
-              setShowSuggestions(false);
-            }}
-            aria-label="Filtra"
-          >
+          <button style={{ ...styles.toolbarBtn, ...(showFilterMenu ? styles.toolbarBtnActive : {}) }} onClick={() => { setShowFilterMenu((v) => !v); setShowSuggestions(false); }} aria-label={t("filterBtn")}>
             <SlidersHorizontal size={16} />
           </button>
           {showFilterMenu && (
-            <FilterDropdown
-              styles={styles}
-              animated={animated}
-              sortOptions={SORT_OPTIONS}
-              sortMode={sortMode}
-              setSortMode={setSortMode}
-              colorFilter={colorFilter}
-              setColorFilter={setColorFilter}
-            />
+            <FilterDropdown styles={styles} animated={animated} sortOptions={sortOptionsAll} sortMode={sortMode} setSortMode={setSortMode} colorFilter={colorFilter} setColorFilter={setColorFilter} />
           )}
         </div>
-        <button
-          style={{ ...styles.toolbarBtn, ...(showSuggestions ? styles.toolbarBtnActive : {}) }}
-          onClick={() => {
-            setShowSuggestions((v) => !v);
-            setShowFilterMenu(false);
-          }}
-          aria-label="Suggerimenti"
-        >
+        <button style={{ ...styles.toolbarBtn, ...(showSuggestions ? styles.toolbarBtnActive : {}) }} onClick={() => { setShowSuggestions((v) => !v); setShowFilterMenu(false); }} aria-label={t("suggestionsBtn")}>
           <Lightbulb size={16} />
         </button>
       </div>
 
       <div style={styles.quickActionsRow}>
-        <button style={styles.quickActionPill} onClick={openImport}>
-          <ListPlus size={14} /> Importa da lista
-        </button>
-        <button style={styles.quickActionPill} onClick={openQuickCheck}>
-          <ListX size={14} /> Check veloce
-        </button>
-        <button style={styles.quickActionPill} onClick={openTextAdd}>
-          <FileText size={14} /> Da testo
-        </button>
+        <button style={styles.quickActionPill} onClick={openImport}><ListPlus size={14} /> {t("importBtn")}</button>
+        <button style={styles.quickActionPill} onClick={openQuickCheck}><ListX size={14} /> {t("quickCheckBtn")}</button>
+        <button style={styles.quickActionPill} onClick={openTextAdd}><FileText size={14} /> {t("textAddBtn")}</button>
       </div>
 
       {showSuggestions && (
@@ -1578,8 +1621,7 @@ function ListScreen({
             <div style={styles.suggestionsRow}>
               {suggestions.map((sug) => (
                 <button key={sug.title} style={styles.suggestionChip} onClick={() => addSuggestion(sug)}>
-                  {sug.emoji ? <span>{sug.emoji}</span> : null} {sug.title}
-                  <Plus size={12} />
+                  {sug.emoji ? <span>{sug.emoji}</span> : null} {sug.title}<Plus size={12} />
                 </button>
               ))}
             </div>
@@ -1591,74 +1633,37 @@ function ListScreen({
         {displayedItems.length === 0 && !showAddForm && (
           <div style={styles.emptyState}>
             <p style={styles.emptyTitle}>{list.items.length === 0 ? "Lista vuota" : "Nessun risultato"}</p>
-            <p style={styles.emptyBody}>
-              {list.items.length === 0 ? "Aggiungi il primo articolo qui sotto." : "Prova un'altra ricerca o filtro."}
-            </p>
+            <p style={styles.emptyBody}>{list.items.length === 0 ? "Aggiungi il primo articolo qui sotto." : "Prova un'altra ricerca o filtro."}</p>
           </div>
         )}
 
         {displayedItems.map((it, idx) => {
-          const subtotal = (Number(it.price) || 0) * (Number(it.qty) || 0);
+          const subtotal = itemSubtotal(it);
           const checkedStyle = it.checked && settings.strikethrough;
           const offset = swipe[it.id] || 0;
           const dragging = dragRef.current.active && dragRef.current.id === it.id;
+          const discountOn = it.discountActive && Number(it.discount) > 0;
           return (
             <div key={it.id}>
               <div style={styles.swipeWrap} className={animated ? "anim-item-in" : ""}>
                 <div style={styles.swipeActions}>
-                  <button style={styles.swipeActionEdit} onClick={() => openEditForm(it)} aria-label="Modifica">
-                    <Pencil size={16} color="#fff" />
-                  </button>
-                  <button style={styles.swipeActionDelete} onClick={() => deleteItem(list.id, it.id)} aria-label="Elimina">
-                    <Trash2 size={16} color="#fff" />
-                  </button>
+                  <button style={styles.swipeActionEdit} onClick={() => openEditForm(it)} aria-label={t("edit")}><Pencil size={16} color="#fff" /></button>
+                  <button style={styles.swipeActionDelete} onClick={() => deleteItem(list.id, it.id)} aria-label={t("delete")}><Trash2 size={16} color="#fff" /></button>
                 </div>
 
-                <div
-                  style={{
-                    ...styles.itemRow,
-                    transform: `translateX(${offset}px)`,
-                    transition: dragging ? "none" : "transform 0.2s ease",
-                    background: styles.colors.card,
-                  }}
-                  onPointerDown={(e) => handlePointerDown(e, it.id)}
-                  onPointerMove={handlePointerMove}
-                  onPointerUp={handlePointerUp}
-                  onPointerCancel={handlePointerUp}
-                >
+                <div style={{ ...styles.itemRow, transform: `translateX(${offset}px)`, transition: dragging ? "none" : "transform 0.2s ease", background: styles.colors.card }}
+                  onPointerDown={(e) => handlePointerDown(e, it.id)} onPointerMove={handlePointerMove} onPointerUp={handlePointerUp} onPointerCancel={handlePointerUp}>
                   {offset !== 0 && <div style={styles.swipeCloseOverlay} onClick={() => closeSwipe(it.id)} />}
 
                   <div style={{ ...styles.itemRowInner, ...(checkedStyle ? { opacity: 0.5 } : {}) }}>
-                    <button
-                      style={{ ...styles.checkCircle, ...(it.checked ? styles.checkCircleOn : {}) }}
-                      onClick={() => toggleChecked(list.id, it.id)}
-                      aria-label="Spunta articolo"
-                    >
+                    <button style={{ ...styles.checkCircle, ...(it.checked ? styles.checkCircleOn : {}) }} onClick={() => toggleChecked(list.id, it.id)} aria-label="Spunta articolo">
                       {it.checked && <Check size={13} color="#fff" strokeWidth={3} />}
                     </button>
 
-                    <div
-                      style={styles.emojiSlot}
-                      onClick={() => {
-                        setEditingEmojiId(it.id);
-                        setEmojiDraft(it.emoji || "");
-                      }}
-                    >
+                    <div style={styles.emojiSlot} onClick={() => { setEditingEmojiId(it.id); setEmojiDraft(it.emoji || ""); }}>
                       {editingEmojiId === it.id ? (
-                        <input
-                          autoFocus
-                          style={styles.emojiInput}
-                          value={emojiDraft}
-                          placeholder="＋"
-                          onChange={(e) => setEmojiDraft(e.target.value)}
-                          onBlur={() => commitEmoji(it.id)}
-                          onKeyDown={(e) => e.key === "Enter" && commitEmoji(it.id)}
-                        />
-                      ) : it.emoji ? (
-                        <span style={styles.emojiChar}>{it.emoji}</span>
-                      ) : (
-                        <span style={styles.emojiPlaceholder}>+</span>
-                      )}
+                        <input autoFocus style={styles.emojiInput} value={emojiDraft} placeholder="＋" onChange={(e) => setEmojiDraft(e.target.value)} onBlur={() => commitEmoji(it.id)} onKeyDown={(e) => e.key === "Enter" && commitEmoji(it.id)} />
+                      ) : it.emoji ? (<span style={styles.emojiChar}>{it.emoji}</span>) : (<span style={styles.emojiPlaceholder}>+</span>)}
                     </div>
 
                     <div style={styles.itemMain}>
@@ -1672,34 +1677,15 @@ function ListScreen({
                       {it.caption ? <div style={styles.itemCaption}>{it.caption}</div> : null}
 
                       <div style={styles.itemLedgerRow}>
-                        <button style={styles.qtyBox} onClick={() => setQtyModalFor(it.id)}>
-                          ×{it.qty}
-                        </button>
-                        <span
-                          style={styles.priceBox}
-                          onClick={() => {
-                            setEditingPriceId(it.id);
-                            setPriceDraft(it.price === "" || it.price === undefined ? "" : String(it.price));
-                          }}
-                        >
+                        <button style={styles.qtyBox} onClick={() => setQtyModalFor(it.id)}>×{it.qty}</button>
+                        <span style={styles.priceBox} onClick={() => { setEditingPriceId(it.id); setPriceDraft(it.price === "" || it.price === undefined ? "" : String(it.price)); }}>
                           {editingPriceId === it.id ? (
-                            <input
-                              autoFocus
-                              type="number"
-                              step="0.01"
-                              placeholder="0.00"
-                              style={styles.inlineNumInput}
-                              value={priceDraft}
-                              onChange={(e) => setPriceDraft(e.target.value)}
-                              onBlur={() => commitPrice(it.id)}
-                              onKeyDown={(e) => e.key === "Enter" && commitPrice(it.id)}
-                            />
-                          ) : it.price === "" || it.price === undefined ? (
-                            <span style={{ color: styles.colors.muted }}>+ prezzo</span>
-                          ) : (
-                            fmtEUR(Number(it.price))
-                          )}
+                            <input autoFocus type="number" step="0.01" placeholder="0.00" style={styles.inlineNumInput} value={priceDraft} onChange={(e) => setPriceDraft(e.target.value)} onBlur={() => commitPrice(it.id)} onKeyDown={(e) => e.key === "Enter" && commitPrice(it.id)} />
+                          ) : it.price === "" || it.price === undefined ? (<span style={{ color: styles.colors.muted }}>+ prezzo</span>) : (fmtEUR(Number(it.price)))}
                         </span>
+                        <button style={{ ...styles.discountBtn, ...(discountOn ? styles.discountBtnOn : {}) }} onClick={() => handleDiscountClick(it)} aria-label={t("discountLabel")}>
+                          {discountOn ? `-${it.discount}%` : <Percent size={13} />}
+                        </button>
                         <span style={styles.subtotalTag}>{fmtEUR(subtotal)}</span>
                       </div>
                     </div>
@@ -1715,7 +1701,7 @@ function ListScreen({
           <>
             <PerforatedDivider />
             <div style={styles.totalRow}>
-              <span style={styles.totalLabel}>totale</span>
+              <span style={styles.totalLabel}>{t("total")}</span>
               <span style={styles.totalValue}>{fmtEUR(total)}</span>
             </div>
           </>
@@ -1727,105 +1713,59 @@ function ListScreen({
           <p style={styles.fieldLabel}>{formMode === "edit" ? "Modifica articolo" : "Nuovo articolo"}</p>
           <div style={styles.rowGap}>
             <div style={{ ...styles.emojiSlot, ...styles.emojiSlotForm }}>
-              <input
-                style={styles.emojiInput}
-                value={form.emoji}
-                placeholder="＋"
-                onChange={(e) => {
-                  setEmojiTouched(true);
-                  setForm({ ...form, emoji: e.target.value });
-                }}
-              />
+              <input style={styles.emojiInput} value={form.emoji} placeholder="＋" onChange={(e) => { setEmojiTouched(true); setForm({ ...form, emoji: e.target.value }); }} />
             </div>
-            <input
-              autoFocus
-              style={{ ...styles.input, flex: 1 }}
-              placeholder="Nome articolo (es. Latte)"
-              value={form.title}
-              onChange={(e) => onTitleFormChange(e.target.value)}
-            />
+            <input autoFocus style={{ ...styles.input, flex: 1 }} placeholder="Nome articolo (es. Latte)" value={form.title} onChange={(e) => onTitleFormChange(e.target.value)} />
           </div>
-          <input
-            style={styles.input}
-            placeholder="Didascalia (opzionale, es. intero 1L)"
-            value={form.caption}
-            onChange={(e) => setForm({ ...form, caption: e.target.value })}
-          />
+          <input style={styles.input} placeholder="Didascalia (opzionale, es. intero 1L)" value={form.caption} onChange={(e) => setForm({ ...form, caption: e.target.value })} />
           <div style={styles.rowGap}>
-            <input
-              type="number"
-              style={{ ...styles.input, flex: 1 }}
-              placeholder="Quantità"
-              value={form.qty}
-              onChange={(e) => setForm({ ...form, qty: e.target.value })}
-            />
-            <input
-              type="number"
-              step="0.01"
-              style={{ ...styles.input, flex: 1 }}
-              placeholder="Prezzo unitario (opz.)"
-              value={form.price}
-              onChange={(e) => setForm({ ...form, price: e.target.value })}
-            />
+            <input type="number" style={{ ...styles.input, flex: 1 }} placeholder="Quantità" value={form.qty} onChange={(e) => setForm({ ...form, qty: e.target.value })} />
+            <input type="number" step="0.01" style={{ ...styles.input, flex: 1 }} placeholder="Prezzo unitario (opz.)" value={form.price} onChange={(e) => setForm({ ...form, price: e.target.value })} />
           </div>
           <div>
             <p style={styles.fieldLabel}>Colore del nome (opzionale)</p>
             <ColorSwatchRow styles={styles} value={form.color} onChange={(c) => setForm({ ...form, color: c })} />
           </div>
           <div style={styles.rowGap}>
-            <button style={styles.primaryBtn} onClick={submitForm}>
-              {formMode === "edit" ? "Salva modifiche" : "Aggiungi"}
-            </button>
-            <button style={styles.secondaryBtn} onClick={closeForm}>
-              Annulla
-            </button>
+            <button style={styles.primaryBtn} onClick={submitForm}>{formMode === "edit" ? t("save") : t("add")}</button>
+            <button style={styles.secondaryBtn} onClick={closeForm}>{t("cancel")}</button>
           </div>
         </div>
       ) : (
-        <button style={styles.fab} onClick={openAddForm} aria-label="Aggiungi articolo">
-          <Plus size={22} color="#fff" />
-        </button>
+        <button style={styles.fab} onClick={openAddForm} aria-label={t("add")}><Plus size={22} color="#fff" /></button>
       )}
 
       {!list.completed && list.items.length > 0 && (
-        <button style={styles.completeBtn} onClick={onRequestComplete}>
-          Completa la spesa
-        </button>
+        <button style={styles.completeBtn} onClick={onRequestComplete}>{t("completeShoppingBtn")}</button>
       )}
 
       {qtyModalFor && (
-        <QtyWheelModal
-          styles={styles}
-          animated={animated}
-          initial={(list.items.find((it) => it.id === qtyModalFor) || {}).qty || 0}
-          onCancel={() => setQtyModalFor(null)}
-          onConfirm={(val) => {
-            editItem(list.id, qtyModalFor, { qty: val });
-            setQtyModalFor(null);
-          }}
-        />
+        <QtyWheelModal styles={styles} t={t} animated={animated} initial={(list.items.find((it) => it.id === qtyModalFor) || {}).qty || 0}
+          onCancel={() => setQtyModalFor(null)} onConfirm={(val) => { editItem(list.id, qtyModalFor, { qty: val }); setQtyModalFor(null); }} />
+      )}
+
+      {discountModalFor && discountModalItem && (
+        <DiscountModal styles={styles} t={t} animated={animated} initial={discountModalItem.discount || 0}
+          onCancel={() => setDiscountModalFor(null)} onConfirm={(val) => commitDiscount(discountModalFor, val)} />
       )}
 
       {importOpen && (
         <ModalOverlay styles={styles} animated={animated} wide onClose={() => setImportOpen(false)}>
           {importStep === "pick-list" ? (
             <>
-              <p style={styles.modalTitle}>Importa da un'altra lista</p>
+              <p style={styles.modalTitle}>{t("importTitle")}</p>
               {otherLists.length === 0 ? (
                 <p style={styles.modalBody}>Non ci sono altre liste da cui importare.</p>
               ) : (
                 <div style={styles.pickListCol}>
                   {otherLists.map((l) => (
                     <button key={l.id} style={styles.pickListRow} onClick={() => pickImportSource(l.id)}>
-                      <span>{l.title}</span>
-                      <span style={{ fontSize: 12, color: styles.colors.muted }}>{l.items.length} articoli</span>
+                      <span>{l.title}</span><span style={{ fontSize: 12, color: styles.colors.muted }}>{l.items.length} {t("itemsCount")}</span>
                     </button>
                   ))}
                 </div>
               )}
-              <button style={{ ...styles.textBtn, marginTop: 10 }} onClick={() => setImportOpen(false)}>
-                Annulla
-              </button>
+              <button style={{ ...styles.textBtn, marginTop: 10 }} onClick={() => setImportOpen(false)}>{t("cancel")}</button>
             </>
           ) : (
             <>
@@ -1833,23 +1773,12 @@ function ListScreen({
               <p style={styles.modalBody}>Deseleziona quelli che non ti interessano, poi conferma.</p>
               <div style={styles.selectList}>
                 {(importSourceList ? importSourceList.items : []).map((it) => (
-                  <SelectableItemRow
-                    key={it.id}
-                    styles={styles}
-                    it={it}
-                    selected={!!importSelected[it.id]}
-                    onToggle={() => toggleImportItem(it.id)}
-                    tone="include"
-                  />
+                  <SelectableItemRow key={it.id} styles={styles} it={it} selected={!!importSelected[it.id]} onToggle={() => toggleImportItem(it.id)} tone="include" />
                 ))}
               </div>
               <div style={styles.modalColGap}>
-                <button style={styles.primaryBtn} onClick={confirmImport} disabled={importSelectedCount === 0}>
-                  Aggiungi{importSelectedCount > 0 ? ` (${importSelectedCount})` : ""}
-                </button>
-                <button style={styles.textBtn} onClick={() => setImportOpen(false)}>
-                  Annulla
-                </button>
+                <button style={styles.primaryBtn} onClick={confirmImport} disabled={importSelectedCount === 0}>{t("add")}{importSelectedCount > 0 ? ` (${importSelectedCount})` : ""}</button>
+                <button style={styles.textBtn} onClick={() => setImportOpen(false)}>{t("cancel")}</button>
               </div>
             </>
           )}
@@ -1860,40 +1789,25 @@ function ListScreen({
         <ModalOverlay styles={styles} animated={animated} wide onClose={() => setQuickOpen(false)}>
           {quickStep === "select" ? (
             <>
-              <p style={styles.modalTitle}>Check veloce</p>
+              <p style={styles.modalTitle}>{t("quickCheckTitle")}</p>
               <p style={styles.modalBody}>Seleziona gli articoli che vuoi eliminare dalla lista.</p>
               <div style={styles.selectList}>
                 {list.items.map((it) => (
-                  <SelectableItemRow
-                    key={it.id}
-                    styles={styles}
-                    it={it}
-                    selected={!!quickSelected[it.id]}
-                    onToggle={() => toggleQuickItem(it.id)}
-                    tone="remove"
-                  />
+                  <SelectableItemRow key={it.id} styles={styles} it={it} selected={!!quickSelected[it.id]} onToggle={() => toggleQuickItem(it.id)} tone="remove" />
                 ))}
               </div>
               <div style={styles.modalColGap}>
-                <button style={styles.dangerBtn} onClick={proceedQuickCheck} disabled={quickSelectedCount === 0}>
-                  Elimina selezionati{quickSelectedCount > 0 ? ` (${quickSelectedCount})` : ""}
-                </button>
-                <button style={styles.textBtn} onClick={() => setQuickOpen(false)}>
-                  Annulla
-                </button>
+                <button style={styles.dangerBtn} onClick={proceedQuickCheck} disabled={quickSelectedCount === 0}>{t("deleteSelected")}{quickSelectedCount > 0 ? ` (${quickSelectedCount})` : ""}</button>
+                <button style={styles.textBtn} onClick={() => setQuickOpen(false)}>{t("cancel")}</button>
               </div>
             </>
           ) : (
             <>
-              <p style={styles.modalTitle}>Sei sicuro?</p>
-              <p style={styles.modalBody}>Stai per eliminare {quickSelectedCount} articoli dalla lista.</p>
+              <p style={styles.modalTitle}>{t("areYouSure")}</p>
+              <p style={styles.modalBody}>Stai per eliminare {quickSelectedCount} {t("itemsCount")}.</p>
               <div style={styles.modalColGap}>
-                <button style={styles.dangerBtn} onClick={confirmQuickDelete}>
-                  Sì, elimina
-                </button>
-                <button style={styles.textBtn} onClick={() => setQuickStep("select")}>
-                  Indietro
-                </button>
+                <button style={styles.dangerBtn} onClick={confirmQuickDelete}>{t("yesDelete")}</button>
+                <button style={styles.textBtn} onClick={() => setQuickStep("select")}>{t("back")}</button>
               </div>
             </>
           )}
@@ -1904,52 +1818,28 @@ function ListScreen({
         <ModalOverlay styles={styles} animated={animated} wide onClose={() => setTextOpen(false)}>
           {textStep === "input" ? (
             <>
-              <p style={styles.modalTitle}>Aggiungi da testo</p>
+              <p style={styles.modalTitle}>{t("textAddTitle")}</p>
               <p style={styles.modalBody}>Scrivi un articolo per riga, oppure carica un file di testo.</p>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".txt,text/plain"
-                style={{ display: "none" }}
-                onChange={handleFileChange}
-              />
-              <button style={styles.secondaryBtn} onClick={() => fileInputRef.current && fileInputRef.current.click()}>
-                Carica file .txt
-              </button>
-              <textarea
-                style={styles.textarea}
-                placeholder={"Latte\nPane\nUova\n..."}
-                value={textValue}
-                onChange={(e) => setTextValue(e.target.value)}
-              />
+              <input ref={fileInputRef} type="file" accept=".txt,text/plain" style={{ display: "none" }} onChange={handleFileChange} />
+              <button style={styles.secondaryBtn} onClick={() => fileInputRef.current && fileInputRef.current.click()}>Carica file .txt</button>
+              <textarea style={styles.textarea} placeholder={"Latte\nPane\nUova\n..."} value={textValue} onChange={(e) => setTextValue(e.target.value)} />
               <div style={styles.modalColGap}>
-                <button style={styles.primaryBtn} onClick={proceedTextAdd} disabled={!textValue.trim()}>
-                  Continua
-                </button>
-                <button style={styles.textBtn} onClick={() => setTextOpen(false)}>
-                  Annulla
-                </button>
+                <button style={styles.primaryBtn} onClick={proceedTextAdd} disabled={!textValue.trim()}>{t("continueBtn")}</button>
+                <button style={styles.textBtn} onClick={() => setTextOpen(false)}>{t("cancel")}</button>
               </div>
             </>
           ) : (
             <>
-              <p style={styles.modalTitle}>Sei sicuro?</p>
-              <p style={styles.modalBody}>Stai per aggiungere {textParsed.length} nuovi articoli alla lista.</p>
+              <p style={styles.modalTitle}>{t("areYouSure")}</p>
+              <p style={styles.modalBody}>Stai per aggiungere {textParsed.length} {t("itemsCount")}.</p>
               <div style={styles.selectList}>
                 {textParsed.map((line, i) => (
-                  <div key={i} style={styles.previewRow}>
-                    {suggestEmoji(line) ? <span>{suggestEmoji(line)}</span> : null}
-                    <span>{line}</span>
-                  </div>
+                  <div key={i} style={styles.previewRow}>{suggestEmoji(line) ? <span>{suggestEmoji(line)}</span> : null}<span>{line}</span></div>
                 ))}
               </div>
               <div style={styles.modalColGap}>
-                <button style={styles.primaryBtn} onClick={confirmTextAdd}>
-                  Sì, aggiungi
-                </button>
-                <button style={styles.textBtn} onClick={() => setTextStep("input")}>
-                  Indietro
-                </button>
+                <button style={styles.primaryBtn} onClick={confirmTextAdd}>{t("yesAdd") || t("add")}</button>
+                <button style={styles.textBtn} onClick={() => setTextStep("input")}>{t("back")}</button>
               </div>
             </>
           )}
@@ -1960,17 +1850,7 @@ function ListScreen({
 }
 
 function getStyles() {
-  const colors = {
-    paper: "#EEF0E4",
-    card: "#FFFFFF",
-    ink: "#24312A",
-    muted: "#6E7B70",
-    green: "#2F6F4F",
-    orange: "#DB8A3E",
-    line: "#C9CFC0",
-    danger: "#E24B4A",
-  };
-
+  const colors = { paper: "#EEF0E4", card: "#FFFFFF", ink: "#24312A", muted: "#6E7B70", green: "#2F6F4F", orange: "#DB8A3E", line: "#C9CFC0", danger: "#E24B4A" };
   const fontDisplay = "'Fraunces', Georgia, serif";
   const fontBody = "'IBM Plex Sans', system-ui, sans-serif";
   const fontMono = "'IBM Plex Mono', 'Courier New', monospace";
@@ -1981,10 +1861,10 @@ function getStyles() {
     loadingBox: { padding: "2rem", fontFamily: fontBody, color: colors.muted },
     screen: { width: "100%", maxWidth: 420, minHeight: "100vh", background: colors.paper, padding: "1.5rem 1.1rem 7rem", position: "relative" },
     header: { marginBottom: "1rem" },
-    headerRow: { display: "flex", alignItems: "center", gap: 8 },
+    headerRow: { display: "flex", alignItems: "center", gap: 6 },
     h1: { fontFamily: fontDisplay, fontWeight: 600, fontSize: 24, margin: 0, cursor: "pointer" },
     subtitle: { color: colors.muted, fontSize: 13, margin: "4px 0 0 30px" },
-    pointsBadge: { display: "flex", alignItems: "center", gap: 4, fontFamily: fontMono, fontSize: 12.5, background: "#FFF3D6", color: "#9A6B0C", padding: "4px 8px", borderRadius: 20, marginLeft: 4 },
+    pointsBadge: { display: "flex", alignItems: "center", gap: 4, fontFamily: fontMono, fontSize: 12, background: "#FFF3D6", color: "#9A6B0C", padding: "4px 7px", borderRadius: 20, border: "none" },
 
     toolbarRow: { display: "flex", gap: 8, marginBottom: 10, position: "relative" },
     searchBox: { flex: 1, display: "flex", alignItems: "center", gap: 6, background: colors.card, border: `1px solid ${colors.line}`, borderRadius: 9, padding: "8px 10px" },
@@ -2045,9 +1925,11 @@ function getStyles() {
     itemTitleChecked: { textDecoration: "line-through", color: colors.muted, fontWeight: 400 },
     itemCaption: { fontSize: 12.5, color: colors.muted, marginTop: 1 },
 
-    itemLedgerRow: { display: "flex", alignItems: "center", gap: 8, marginTop: 7, fontFamily: fontMono, fontSize: 12.5 },
+    itemLedgerRow: { display: "flex", alignItems: "center", gap: 6, marginTop: 7, fontFamily: fontMono, fontSize: 12.5, flexWrap: "wrap" },
     qtyBox: { background: colors.paper, border: `1px solid ${colors.line}`, borderRadius: 8, padding: "4px 9px", color: colors.ink, fontFamily: fontMono, fontSize: 12.5 },
     priceBox: { background: colors.paper, border: `1px solid ${colors.line}`, borderRadius: 8, padding: "4px 9px", display: "inline-flex", cursor: "text" },
+    discountBtn: { background: colors.paper, border: `1px solid ${colors.line}`, borderRadius: 8, padding: "4px 7px", color: colors.muted, display: "inline-flex", alignItems: "center", fontFamily: fontMono, fontSize: 12 },
+    discountBtnOn: { background: "#FDEDEA", borderColor: colors.danger, color: colors.danger, fontWeight: 600 },
     subtotalTag: { marginLeft: "auto", color: colors.green, fontWeight: 500 },
     inlineNumInput: { width: 58, fontFamily: fontMono, fontSize: 12.5, border: "none", background: "transparent", padding: 0 },
 
@@ -2086,6 +1968,14 @@ function getStyles() {
     colorStyleRow: { width: "100%", display: "flex", alignItems: "center", gap: 12, background: "transparent", border: "none", padding: "10px 4px", textAlign: "left" },
     colorStyleRowActive: { background: "#F5F7EF", borderRadius: 8 },
     colorStyleLabel: { fontSize: 13.5, flex: 1 },
+
+    pointsHero: { background: colors.card, border: `1px solid ${colors.line}`, borderRadius: 12, padding: "22px 16px", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 },
+    pointsHeroLabel: { fontSize: 12.5, color: colors.muted, marginTop: 4 },
+    pointsHeroValue: { fontFamily: fontMono, fontSize: 34, fontWeight: 600, color: "#9A6B0C" },
+    shopGrid: { display: "flex", flexDirection: "column", gap: 10 },
+    shopCard: { background: colors.card, border: `1px solid ${colors.line}`, borderRadius: 10, padding: 12 },
+    shopCardTitle: { fontFamily: fontDisplay, fontWeight: 600, fontSize: 15, marginBottom: 3 },
+    shopCardDesc: { fontSize: 12, color: colors.muted, marginBottom: 10, lineHeight: 1.4 },
 
     modalOverlay: { position: "fixed", inset: 0, background: "rgba(36,49,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 },
     modalCard: { background: colors.card, borderRadius: 14, padding: "22px 20px", maxWidth: 340, width: "100%", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 },
