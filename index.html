@@ -1,0 +1,2123 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+<title>Lista della Spesa</title>
+<link rel="manifest" href="manifest.json" />
+<meta name="theme-color" content="#2F6F4F" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="Lista Spesa" />
+<style>
+  html, body { margin:0; padding:0; background:#EEF0E4; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
+  #root { min-height: 100vh; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "react": "https://esm.sh/react@18.3.1",
+    "react-dom/client": "https://esm.sh/react-dom@18.3.1/client",
+    "lucide-react": "https://esm.sh/lucide-react@0.383.0?external=react"
+  }
+}
+</script>
+<script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+</head>
+<body>
+<div id="root"></div>
+
+<script>
+// Shim locale dell'API window.storage (usata dall'app) basato su localStorage,
+// cosi' il componente funziona identico dentro Claude e dentro l'app installata.
+window.storage = {
+  async get(key) {
+    const v = localStorage.getItem(key);
+    return v === null ? null : { key, value: v, shared: false };
+  },
+  async set(key, value) {
+    localStorage.setItem(key, value);
+    return { key, value, shared: false };
+  },
+  async delete(key) {
+    const existed = localStorage.getItem(key) !== null;
+    localStorage.removeItem(key);
+    return { key, deleted: existed, shared: false };
+  },
+  async list(prefix) {
+    const keys = Object.keys(localStorage).filter((k) => !prefix || k.startsWith(prefix));
+    return { keys, prefix, shared: false };
+  },
+};
+</script>
+
+<script type="text/babel" data-type="module" data-presets="react">
+import React, { useState, useEffect, useRef, useMemo } from "react";
+import { createRoot } from "react-dom/client";
+import {
+  Plus,
+  Check,
+  Trash2,
+  Pencil,
+  ArrowLeft,
+  X,
+  ShoppingCart,
+  Settings as SettingsIcon,
+  Palette,
+  Search,
+  SlidersHorizontal,
+  Lightbulb,
+  Trophy,
+  Copy,
+  ListPlus,
+  ListX,
+  FileText,
+} from "lucide-react";
+
+
+const LISTS_KEY = "grocery-lists-v3";
+const SETTINGS_KEY = "grocery-settings-v3";
+const GAMIFICATION_KEY = "grocery-gamification-v1";
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+
+const fmtEUR = (n) =>
+  new Intl.NumberFormat("it-IT", { style: "currency", currency: "EUR" }).format(
+    Number.isFinite(n) ? n : 0
+  );
+
+const COLOR_PALETTE = [
+  "#2F6F4F",
+  "#DB8A3E",
+  "#378ADD",
+  "#D4537E",
+  "#7F77DD",
+  "#E24B4A",
+  "#1D9E75",
+  "#BA7517",
+];
+
+const SORT_OPTIONS = [
+  { id: "manual", label: "Ordine personale" },
+  { id: "alpha", label: "Alfabetico" },
+  { id: "checked", label: "Ordine di spunta" },
+  { id: "price-asc", label: "Prezzo: dal più basso" },
+  { id: "price-desc", label: "Prezzo: dal più alto" },
+  { id: "qty-asc", label: "Quantità: dalla più bassa" },
+  { id: "qty-desc", label: "Quantità: dalla più alta" },
+];
+const HOME_SORT_OPTIONS = SORT_OPTIONS.filter((o) => o.id !== "checked");
+
+const COLOR_STYLE_OPTIONS = [
+  { id: "underline", label: "Sottolineatura" },
+  { id: "stripe-left", label: "Striscia laterale" },
+  { id: "stripe-bottom", label: "Striscia in basso" },
+  { id: "fill", label: "Riempimento pieno" },
+  { id: "fill-gold", label: "Riempimento + striscia dorata" },
+  { id: "fill-silver", label: "Riempimento + striscia argento" },
+];
+
+const EMOJI_MAP = [
+  [["latte"], "🥛"],
+  [["pane", "baguette", "panino", "panini"], "🍞"],
+  [["uova", "uovo"], "🥚"],
+  [["mela", "mele"], "🍎"],
+  [["banana", "banane"], "🍌"],
+  [["pomodoro", "pomodori"], "🍅"],
+  [["pasta", "spaghetti", "penne", "fusilli", "maccheroni"], "🍝"],
+  [["riso"], "🍚"],
+  [["formaggio", "parmigiano", "mozzarella", "grana"], "🧀"],
+  [["pollo"], "🍗"],
+  [["carne", "manzo", "bistecca", "macinato"], "🥩"],
+  [["pesce", "tonno", "salmone", "merluzzo"], "🐟"],
+  [["acqua"], "💧"],
+  [["vino"], "🍷"],
+  [["birra"], "🍺"],
+  [["caffe", "caffè"], "☕"],
+  [["zucchero"], "🧂"],
+  [["sale"], "🧂"],
+  [["olio"], "🫒"],
+  [["burro"], "🧈"],
+  [["yogurt"], "🥣"],
+  [["cioccolato", "cioccolata", "nutella"], "🍫"],
+  [["biscotti"], "🍪"],
+  [["patate", "patata"], "🥔"],
+  [["cipolla", "cipolle"], "🧅"],
+  [["aglio"], "🧄"],
+  [["limone", "limoni"], "🍋"],
+  [["arancia", "arance"], "🍊"],
+  [["insalata", "lattuga"], "🥬"],
+  [["carota", "carote"], "🥕"],
+  [["sapone"], "🧼"],
+  [["detersivo", "ammorbidente"], "🧴"],
+  [["dentifricio"], "🪥"],
+  [["shampoo"], "🧴"],
+  [["uva"], "🍇"],
+  [["fragola", "fragole"], "🍓"],
+  [["pera", "pere"], "🍐"],
+  [["pesca", "pesche"], "🍑"],
+  [["prosciutto", "salame", "salumi", "speck"], "🥓"],
+  [["farina"], "🌾"],
+  [["cereali"], "🥣"],
+  [["te ", "tè", "tisana"], "🍵"],
+  [["succo"], "🧃"],
+  [["gelato"], "🍨"],
+  [["torta"], "🍰"],
+  [["pizza"], "🍕"],
+  [["peperone", "peperoni"], "🫑"],
+  [["zucchina", "zucchine"], "🥒"],
+  [["fungo", "funghi"], "🍄"],
+  [["noci", "nocciole", "mandorle", "arachidi"], "🥜"],
+  [["miele"], "🍯"],
+  [["carta igienica", "scottex", "tovaglioli"], "🧻"],
+];
+
+function suggestEmoji(title) {
+  const t = (title || "").toLowerCase();
+  if (!t.trim()) return "";
+  for (const [keys, emoji] of EMOJI_MAP) {
+    if (keys.some((k) => t.includes(k))) return emoji;
+  }
+  return "";
+}
+
+function sortItems(items, checkOrder, mode) {
+  const arr = [...items];
+  switch (mode) {
+    case "alpha":
+      return arr.sort((a, b) => a.title.localeCompare(b.title, "it"));
+    case "checked": {
+      const order = checkOrder || [];
+      const checkedFirst = order.map((id) => arr.find((i) => i.id === id)).filter(Boolean);
+      const rest = arr.filter((i) => !order.includes(i.id));
+      return [...checkedFirst, ...rest];
+    }
+    case "price-asc":
+      return arr.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
+    case "price-desc":
+      return arr.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+    case "qty-asc":
+      return arr.sort((a, b) => (Number(a.qty) || 0) - (Number(b.qty) || 0));
+    case "qty-desc":
+      return arr.sort((a, b) => (Number(b.qty) || 0) - (Number(a.qty) || 0));
+    default:
+      return arr;
+  }
+}
+
+function sortLists(lists, mode, totalFn) {
+  const arr = [...lists];
+  switch (mode) {
+    case "alpha":
+      return arr.sort((a, b) => a.title.localeCompare(b.title, "it"));
+    case "price-asc":
+      return arr.sort((a, b) => totalFn(a) - totalFn(b));
+    case "price-desc":
+      return arr.sort((a, b) => totalFn(b) - totalFn(a));
+    case "qty-asc":
+      return arr.sort((a, b) => a.items.length - b.items.length);
+    case "qty-desc":
+      return arr.sort((a, b) => b.items.length - a.items.length);
+    default:
+      return arr;
+  }
+}
+
+function PerforatedDivider() {
+  return (
+    <svg width="100%" height="14" viewBox="0 0 300 14" preserveAspectRatio="none" style={{ display: "block" }}>
+      <line x1="0" y1="7" x2="300" y2="7" stroke="#C9CFC0" strokeWidth="1.5" strokeDasharray="5 6" />
+    </svg>
+  );
+}
+
+function ColorTag({ styles, color, mode, small, children }) {
+  const m = mode || "underline";
+  if (!color) return <span>{children}</span>;
+
+  if (m === "underline") {
+    return (
+      <span style={{ borderBottom: `${small ? 2 : 3}px solid ${color}`, display: "inline-block", width: "fit-content" }}>
+        {children}
+      </span>
+    );
+  }
+
+  const base = {
+    position: "relative",
+    display: "inline-block",
+    borderRadius: small ? 6 : 7,
+    overflow: "hidden",
+    background: styles.colors.paper,
+    border: `1px solid ${styles.colors.line}`,
+    width: "fit-content",
+  };
+
+  if (m === "stripe-left") {
+    return (
+      <span style={{ ...base, padding: small ? "2px 7px 2px 12px" : "3px 9px 3px 14px" }}>
+        <span style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: "9.0909%", background: color }} />
+        {children}
+      </span>
+    );
+  }
+  if (m === "stripe-bottom") {
+    return (
+      <span style={{ ...base, padding: small ? "2px 7px 6px" : "3px 9px 8px" }}>
+        <span style={{ position: "absolute", left: 0, right: 0, bottom: 0, height: "20%", background: color }} />
+        {children}
+      </span>
+    );
+  }
+  const bandGradient =
+    m === "fill-gold"
+      ? "linear-gradient(90deg,#B8862E,#F5E08C,#B8862E)"
+      : m === "fill-silver"
+      ? "linear-gradient(90deg,#9A9A9A,#F0F0F0,#9A9A9A)"
+      : null;
+  return (
+    <span style={{ ...base, background: color, border: "none", color: "#fff", padding: small ? "2px 8px" : "3px 10px" }}>
+      {bandGradient && (
+        <span style={{ position: "absolute", left: 0, right: 0, top: "25%", height: "12.5%", background: bandGradient }} />
+      )}
+      <span style={{ position: "relative", zIndex: 1 }}>{children}</span>
+    </span>
+  );
+}
+
+function ColorSwatchRow({ styles, value, onChange, allowNone = true }) {
+  return (
+    <div style={styles.swatchRow}>
+      {allowNone && (
+        <button
+          type="button"
+          style={{ ...styles.swatch, ...styles.swatchNone, ...(value ? {} : styles.swatchSelected) }}
+          onClick={() => onChange(null)}
+          aria-label="Nessun colore"
+        >
+          <X size={12} color={styles.colors.muted} />
+        </button>
+      )}
+      {COLOR_PALETTE.map((c) => (
+        <button
+          type="button"
+          key={c}
+          style={{ ...styles.swatch, background: c, ...(value === c ? styles.swatchSelected : {}) }}
+          onClick={() => onChange(c)}
+          aria-label={`Colore ${c}`}
+        />
+      ))}
+    </div>
+  );
+}
+
+function FilterDropdown({ styles, animated, sortOptions, sortMode, setSortMode, colorFilter, setColorFilter }) {
+  return (
+    <div style={styles.filterDropdown} className={animated ? "anim-panel-in" : ""}>
+      {sortOptions.map((opt) => (
+        <button
+          key={opt.id}
+          style={{ ...styles.filterOption, ...(sortMode === opt.id ? styles.filterOptionActive : {}) }}
+          onClick={() => setSortMode(opt.id)}
+        >
+          {opt.label}
+        </button>
+      ))}
+      <div style={styles.filterDivider} />
+      <p style={styles.filterSectionLabel}>Colore</p>
+      <div style={styles.swatchRow}>
+        <button
+          type="button"
+          style={{ ...styles.swatch, ...styles.swatchAll, ...(colorFilter ? {} : styles.swatchSelected) }}
+          onClick={() => setColorFilter(null)}
+          aria-label="Tutti i colori"
+        />
+        {COLOR_PALETTE.map((c) => (
+          <button
+            key={c}
+            type="button"
+            style={{ ...styles.swatch, background: c, ...(colorFilter === c ? styles.swatchSelected : {}) }}
+            onClick={() => setColorFilter(c)}
+            aria-label={`Filtra colore ${c}`}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function ModalOverlay({ styles, onClose, children, animated, wide }) {
+  return (
+    <div style={styles.modalOverlay} onClick={onClose}>
+      <div
+        style={wide ? styles.wideModalCard : styles.modalCard}
+        className={animated ? "anim-modal-in" : ""}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function QtyWheelModal({ styles, initial, onCancel, onConfirm, animated }) {
+  const [value, setValue] = useState(Math.max(0, Math.min(99, Number(initial) || 0)));
+  const listRef = useRef(null);
+  const itemH = 36;
+  const max = 99;
+  const scrollTimer = useRef(null);
+
+  useEffect(() => {
+    if (listRef.current) listRef.current.scrollTop = value * itemH;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  function handleScroll(e) {
+    const idx = Math.round(e.target.scrollTop / itemH);
+    const clamped = Math.max(0, Math.min(max, idx));
+    setValue(clamped);
+    if (scrollTimer.current) clearTimeout(scrollTimer.current);
+    scrollTimer.current = setTimeout(() => {
+      if (listRef.current) listRef.current.scrollTop = clamped * itemH;
+    }, 120);
+  }
+
+  return (
+    <ModalOverlay styles={styles} onClose={onCancel} animated={animated}>
+      <p style={styles.modalTitle}>Quantità</p>
+      <div style={styles.wheelWrap}>
+        <div style={styles.wheelHighlight} />
+        <div ref={listRef} className="wheelScroll" style={styles.wheelScroll} onScroll={handleScroll}>
+          <div style={{ height: itemH * 2 }} />
+          {Array.from({ length: max + 1 }).map((_, n) => (
+            <div key={n} style={{ ...styles.wheelItem, ...(n === value ? styles.wheelItemActive : {}) }}>
+              {n}
+            </div>
+          ))}
+          <div style={{ height: itemH * 2 }} />
+        </div>
+      </div>
+      <div style={styles.modalColGap}>
+        <button style={styles.primaryBtn} onClick={() => onConfirm(value)}>
+          Conferma
+        </button>
+        <button style={styles.textBtn} onClick={onCancel}>
+          Annulla
+        </button>
+      </div>
+    </ModalOverlay>
+  );
+}
+
+function SelectableItemRow({ styles, it, selected, onToggle, tone }) {
+  const isRemove = tone === "remove";
+  return (
+    <button style={styles.selectRow} onClick={onToggle}>
+      <span
+        style={{
+          ...styles.selectCircle,
+          ...(selected ? (isRemove ? styles.selectCircleRemove : styles.selectCircleOn) : {}),
+        }}
+      >
+        {selected && (isRemove ? <X size={12} color="#fff" strokeWidth={3} /> : <Check size={12} color="#fff" strokeWidth={3} />)}
+      </span>
+      {it.emoji ? <span style={{ fontSize: 15 }}>{it.emoji}</span> : null}
+      <span
+        style={{
+          flex: 1,
+          textAlign: "left",
+          fontSize: 13.5,
+          ...(isRemove && selected ? { textDecoration: "line-through", color: styles.colors.muted } : {}),
+        }}
+      >
+        {it.title}
+      </span>
+      <span style={{ fontFamily: "'IBM Plex Mono', monospace", fontSize: 12, color: styles.colors.muted }}>×{it.qty}</span>
+    </button>
+  );
+}
+
+function App() {
+  const [lists, setLists] = useState([]);
+  const [settings, setSettings] = useState({
+    strikethrough: true,
+    animations: true,
+    colorStyle: "underline",
+    gamification: true,
+  });
+  const [points, setPoints] = useState(0);
+  const [loaded, setLoaded] = useState(false);
+  const [screen, setScreen] = useState("home");
+  const [activeId, setActiveId] = useState(null);
+  const [newListTitle, setNewListTitle] = useState("");
+  const [newListColor, setNewListColor] = useState(COLOR_PALETTE[0]);
+  const [showNewList, setShowNewList] = useState(false);
+  const [choiceModalFor, setChoiceModalFor] = useState(null);
+  const [confirmCompleteFor, setConfirmCompleteFor] = useState(null);
+  const [completionBanner, setCompletionBanner] = useState(null);
+  const [storageError, setStorageError] = useState(false);
+  const hasLoadedListsOnce = useRef(false);
+  const hasLoadedSettingsOnce = useRef(false);
+  const hasLoadedPointsOnce = useRef(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await window.storage.get(LISTS_KEY, false);
+        if (res && res.value) setLists(JSON.parse(res.value));
+      } catch (e) {}
+      try {
+        const res2 = await window.storage.get(SETTINGS_KEY, false);
+        if (res2 && res2.value) setSettings((s) => ({ ...s, ...JSON.parse(res2.value) }));
+      } catch (e) {}
+      try {
+        const res3 = await window.storage.get(GAMIFICATION_KEY, false);
+        if (res3 && res3.value) setPoints(JSON.parse(res3.value).points || 0);
+      } catch (e) {}
+      setLoaded(true);
+    })();
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+    if (!hasLoadedListsOnce.current) {
+      hasLoadedListsOnce.current = true;
+      return;
+    }
+    (async () => {
+      try {
+        const res = await window.storage.set(LISTS_KEY, JSON.stringify(lists), false);
+        setStorageError(!res);
+      } catch (e) {
+        setStorageError(true);
+      }
+    })();
+  }, [lists, loaded]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    if (!hasLoadedSettingsOnce.current) {
+      hasLoadedSettingsOnce.current = true;
+      return;
+    }
+    (async () => {
+      try {
+        await window.storage.set(SETTINGS_KEY, JSON.stringify(settings), false);
+      } catch (e) {
+        setStorageError(true);
+      }
+    })();
+  }, [settings, loaded]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    if (!hasLoadedPointsOnce.current) {
+      hasLoadedPointsOnce.current = true;
+      return;
+    }
+    (async () => {
+      try {
+        await window.storage.set(GAMIFICATION_KEY, JSON.stringify({ points }), false);
+      } catch (e) {
+        setStorageError(true);
+      }
+    })();
+  }, [points, loaded]);
+
+  const activeList = lists.find((l) => l.id === activeId) || null;
+  const animated = settings.animations;
+
+  function createList() {
+    const title = newListTitle.trim() || "Lista senza nome";
+    const list = { id: uid(), title, color: newListColor, items: [], completed: false, checkOrder: [], lastTotal: undefined };
+    setLists((prev) => [list, ...prev]);
+    setNewListTitle("");
+    setNewListColor(COLOR_PALETTE[0]);
+    setShowNewList(false);
+    setActiveId(list.id);
+    setScreen("list");
+  }
+
+  function duplicateList(id) {
+    setLists((prev) => {
+      const idx = prev.findIndex((l) => l.id === id);
+      if (idx === -1) return prev;
+      const orig = prev[idx];
+      const copy = {
+        ...orig,
+        id: uid(),
+        title: orig.title + " (copia)",
+        completed: false,
+        checkOrder: [],
+        lastTotal: undefined,
+        items: orig.items.map((it) => ({ ...it, id: uid(), checked: false })),
+      };
+      const next = [...prev];
+      next.splice(idx + 1, 0, copy);
+      return next;
+    });
+  }
+
+  function deleteList(id) {
+    setLists((prev) => prev.filter((l) => l.id !== id));
+  }
+
+  function updateList(id, patch) {
+    setLists((prev) => prev.map((l) => (l.id === id ? { ...l, ...patch } : l)));
+  }
+
+  function addItem(listId, item) {
+    setLists((prev) =>
+      prev.map((l) =>
+        l.id === listId
+          ? {
+              ...l,
+              items: [
+                ...l.items,
+                {
+                  id: uid(),
+                  title: item.title,
+                  caption: item.caption || "",
+                  qty: item.qty,
+                  price: item.price,
+                  checked: false,
+                  emoji: item.emoji || "",
+                  color: item.color || null,
+                },
+              ],
+            }
+          : l
+      )
+    );
+  }
+
+  function addItems(listId, items) {
+    setLists((prev) =>
+      prev.map((l) =>
+        l.id === listId
+          ? {
+              ...l,
+              items: [
+                ...l.items,
+                ...items.map((item) => ({
+                  id: uid(),
+                  title: item.title,
+                  caption: item.caption || "",
+                  qty: item.qty === undefined || item.qty === "" ? 1 : item.qty,
+                  price: item.price === undefined ? "" : item.price,
+                  checked: false,
+                  emoji: item.emoji || "",
+                  color: item.color || null,
+                })),
+              ],
+            }
+          : l
+      )
+    );
+  }
+
+  function editItem(listId, itemId, patch) {
+    setLists((prev) =>
+      prev.map((l) =>
+        l.id === listId ? { ...l, items: l.items.map((it) => (it.id === itemId ? { ...it, ...patch } : it)) } : l
+      )
+    );
+  }
+
+  function deleteItem(listId, itemId) {
+    setLists((prev) =>
+      prev.map((l) =>
+        l.id === listId
+          ? { ...l, items: l.items.filter((it) => it.id !== itemId), checkOrder: (l.checkOrder || []).filter((id) => id !== itemId) }
+          : l
+      )
+    );
+  }
+
+  function deleteItems(listId, itemIds) {
+    const idSet = new Set(itemIds);
+    setLists((prev) =>
+      prev.map((l) =>
+        l.id === listId
+          ? {
+              ...l,
+              items: l.items.filter((it) => !idSet.has(it.id)),
+              checkOrder: (l.checkOrder || []).filter((id) => !idSet.has(id)),
+            }
+          : l
+      )
+    );
+  }
+
+  function toggleChecked(listId, itemId) {
+    setLists((prev) =>
+      prev.map((l) => {
+        if (l.id !== listId) return l;
+        const target = l.items.find((it) => it.id === itemId);
+        if (!target) return l;
+        const nowChecked = !target.checked;
+        let checkOrder = l.checkOrder || [];
+        checkOrder = nowChecked
+          ? [...checkOrder.filter((id) => id !== itemId), itemId]
+          : checkOrder.filter((id) => id !== itemId);
+        return { ...l, checkOrder, items: l.items.map((it) => (it.id === itemId ? { ...it, checked: nowChecked } : it)) };
+      })
+    );
+  }
+
+  function listTotal(list) {
+    return list.items.reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.qty) || 0), 0);
+  }
+
+  function confirmComplete() {
+    const list = lists.find((l) => l.id === confirmCompleteFor);
+    if (!list) {
+      setConfirmCompleteFor(null);
+      return;
+    }
+    const total = listTotal(list);
+    const prevTotal = list.lastTotal;
+    let pointsEarned = 0;
+    const isFirst = typeof prevTotal !== "number";
+    if (!isFirst && settings.gamification) {
+      const diffCents = Math.round((prevTotal - total) * 100);
+      if (diffCents > 0) pointsEarned = Math.floor(diffCents / 10);
+    }
+    if (pointsEarned > 0) setPoints((p) => p + pointsEarned);
+
+    setLists((prev) =>
+      prev.map((l) => {
+        if (l.id !== list.id) return l;
+        const order = l.checkOrder || [];
+        const checkedFirst = order.map((id) => l.items.find((it) => it.id === id)).filter(Boolean);
+        const rest = l.items.filter((it) => !order.includes(it.id));
+        return { ...l, items: [...checkedFirst, ...rest], completed: true, lastTotal: total };
+      })
+    );
+    setConfirmCompleteFor(null);
+    setActiveId(null);
+    setScreen("home");
+    setCompletionBanner({
+      title: list.title,
+      total,
+      isFirst,
+      pointsEarned,
+      diff: isFirst ? 0 : prevTotal - total,
+      showGamification: settings.gamification,
+    });
+  }
+
+  function resetForShopping(listId) {
+    setLists((prev) =>
+      prev.map((l) =>
+        l.id === listId ? { ...l, completed: false, checkOrder: [], items: l.items.map((it) => ({ ...it, checked: false })) } : l
+      )
+    );
+    setActiveId(listId);
+    setScreen("list");
+    setChoiceModalFor(null);
+  }
+
+  function openForEdit(listId) {
+    setActiveId(listId);
+    setScreen("list");
+    setChoiceModalFor(null);
+  }
+
+  function openList(id) {
+    const list = lists.find((l) => l.id === id);
+    if (list && list.completed) {
+      setChoiceModalFor(id);
+    } else {
+      setActiveId(id);
+      setScreen("list");
+    }
+  }
+
+  const styles = getStyles();
+
+  if (!loaded) {
+    return (
+      <div style={styles.appShell}>
+        <div style={styles.loadingBox}>Caricamento liste…</div>
+      </div>
+    );
+  }
+
+  const listForChoice = lists.find((l) => l.id === choiceModalFor);
+  const listForConfirm = lists.find((l) => l.id === confirmCompleteFor);
+
+  return (
+    <div style={styles.appShell}>
+      <style>{`
+        @import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500&family=IBM+Plex+Mono:wght@400;500&display=swap');
+        * { box-sizing: border-box; }
+        input, textarea { font-family: inherit; }
+        button { cursor: pointer; }
+        ::placeholder { color: #9AA093; }
+        .wheelScroll::-webkit-scrollbar { display: none; }
+        @keyframes modalIn { from { opacity:0; transform: scale(0.92); } to { opacity:1; transform: scale(1); } }
+        @keyframes cardIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: translateY(0); } }
+        @keyframes itemIn { from { opacity:0; transform: translateX(-10px); } to { opacity:1; transform: translateX(0); } }
+        @keyframes screenIn { from { opacity:0; transform: translateY(10px); } to { opacity:1; transform: translateY(0); } }
+        @keyframes panelIn { from { opacity:0; transform: translateY(-6px); } to { opacity:1; transform: translateY(0); } }
+        .anim-modal-in { animation: modalIn 0.18s ease; }
+        .anim-card-in { animation: cardIn 0.22s ease; }
+        .anim-item-in { animation: itemIn 0.2s ease; }
+        .anim-screen-in { animation: screenIn 0.22s ease; }
+        .anim-panel-in { animation: panelIn 0.16s ease; }
+      `}</style>
+
+      {screen === "home" && (
+        <HomeScreen
+          key="home"
+          animated={animated}
+          styles={styles}
+          settings={settings}
+          points={points}
+          lists={lists}
+          showNewList={showNewList}
+          setShowNewList={setShowNewList}
+          newListTitle={newListTitle}
+          setNewListTitle={setNewListTitle}
+          newListColor={newListColor}
+          setNewListColor={setNewListColor}
+          createList={createList}
+          openList={openList}
+          deleteList={deleteList}
+          duplicateList={duplicateList}
+          listTotal={listTotal}
+          onOpenSettings={() => setScreen("settings")}
+        />
+      )}
+
+      {screen === "list" && activeList && (
+        <ListScreen
+          key={"list-" + activeList.id}
+          animated={animated}
+          styles={styles}
+          list={activeList}
+          allLists={lists}
+          settings={settings}
+          onBack={() => {
+            setScreen("home");
+            setActiveId(null);
+          }}
+          updateList={updateList}
+          addItem={addItem}
+          addItems={addItems}
+          editItem={editItem}
+          deleteItem={deleteItem}
+          deleteItems={deleteItems}
+          toggleChecked={toggleChecked}
+          onRequestComplete={() => setConfirmCompleteFor(activeList.id)}
+        />
+      )}
+
+      {screen === "settings" && (
+        <SettingsScreen
+          key="settings"
+          animated={animated}
+          styles={styles}
+          settings={settings}
+          setSettings={setSettings}
+          points={points}
+          onBack={() => setScreen("home")}
+        />
+      )}
+
+      {choiceModalFor && listForChoice && (
+        <ModalOverlay styles={styles} animated={animated} onClose={() => setChoiceModalFor(null)}>
+          <p style={styles.modalTitle}>{listForChoice.title}</p>
+          <p style={styles.modalBody}>Questa lista è già stata completata. Cosa vuoi fare?</p>
+          <div style={styles.modalColGap}>
+            <button style={styles.primaryBtn} onClick={() => resetForShopping(listForChoice.id)}>
+              Inizia la spesa
+            </button>
+            <button style={styles.secondaryBtn} onClick={() => openForEdit(listForChoice.id)}>
+              Modifica lista
+            </button>
+            <button style={styles.textBtn} onClick={() => setChoiceModalFor(null)}>
+              Annulla
+            </button>
+          </div>
+        </ModalOverlay>
+      )}
+
+      {confirmCompleteFor && listForConfirm && (
+        <ModalOverlay styles={styles} animated={animated} onClose={() => setConfirmCompleteFor(null)}>
+          <p style={styles.modalTitle}>Completare la spesa?</p>
+          <p style={styles.modalBody}>
+            La lista "{listForConfirm.title}" verrà chiusa e il totale calcolato. Potrai comunque ricominciare più avanti.
+          </p>
+          <div style={styles.modalColGap}>
+            <button style={styles.primaryBtn} onClick={confirmComplete}>
+              Sì, completa
+            </button>
+            <button style={styles.textBtn} onClick={() => setConfirmCompleteFor(null)}>
+              Annulla
+            </button>
+          </div>
+        </ModalOverlay>
+      )}
+
+      {completionBanner && (
+        <ModalOverlay styles={styles} animated={animated} onClose={() => setCompletionBanner(null)}>
+          <div style={styles.bannerIcon}>
+            <Check size={26} color="#fff" strokeWidth={3} />
+          </div>
+          <p style={styles.modalTitle}>{completionBanner.title}</p>
+          <p style={styles.bannerTotal}>{fmtEUR(completionBanner.total)}</p>
+          <p style={styles.modalBody}>Spesa completata.</p>
+          {completionBanner.showGamification && (
+            <div style={styles.gamificationNote}>
+              {completionBanner.isFirst ? (
+                <span>Primo completamento salvato come riferimento per la prossima volta.</span>
+              ) : completionBanner.pointsEarned > 0 ? (
+                <span>
+                  🏆 +{completionBanner.pointsEarned} punti — hai speso {fmtEUR(completionBanner.diff)} in meno rispetto
+                  alla volta scorsa!
+                </span>
+              ) : (
+                <span>Nessun punto questa volta: la spesa non è costata meno della precedente.</span>
+              )}
+            </div>
+          )}
+          <button style={styles.primaryBtn} onClick={() => setCompletionBanner(null)}>
+            Chiudi
+          </button>
+        </ModalOverlay>
+      )}
+
+      {storageError && <div style={styles.storageWarning}>Impossibile salvare le modifiche in questo momento.</div>}
+    </div>
+  );
+}
+
+function HomeScreen({
+  animated,
+  styles,
+  settings,
+  points,
+  lists,
+  showNewList,
+  setShowNewList,
+  newListTitle,
+  setNewListTitle,
+  newListColor,
+  setNewListColor,
+  createList,
+  openList,
+  deleteList,
+  duplicateList,
+  listTotal,
+  onOpenSettings,
+}) {
+  const [sortMode, setSortMode] = useState("manual");
+  const [colorFilter, setColorFilter] = useState(null);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [swipe, setSwipe] = useState({});
+  const dragRef = useRef({ id: null, startX: 0, base: 0, active: false });
+
+  const displayedLists = useMemo(() => {
+    let arr = sortLists(lists, sortMode, listTotal);
+    if (colorFilter) arr = arr.filter((l) => l.color === colorFilter);
+    return arr;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lists, sortMode, colorFilter]);
+
+  function closeSwipe(id) {
+    setSwipe((s) => ({ ...s, [id]: 0 }));
+  }
+  function handlePointerDown(e, id) {
+    dragRef.current = { id, startX: e.clientX, base: swipe[id] || 0, active: true };
+  }
+  function handlePointerMove(e) {
+    if (!dragRef.current.active) return;
+    const delta = e.clientX - dragRef.current.startX;
+    let next = dragRef.current.base + delta;
+    next = Math.max(-72, Math.min(0, next));
+    setSwipe((s) => ({ ...s, [dragRef.current.id]: next }));
+  }
+  function handlePointerUp() {
+    if (!dragRef.current.active) return;
+    const id = dragRef.current.id;
+    setSwipe((s) => {
+      const cur = s[id] || 0;
+      return { ...s, [id]: cur < -36 ? -72 : 0 };
+    });
+    dragRef.current.active = false;
+  }
+
+  return (
+    <div style={styles.screen} className={animated ? "anim-screen-in" : ""}>
+      <header style={styles.header}>
+        <div style={styles.headerRow}>
+          <ShoppingCart size={22} color={styles.colors.green} />
+          <h1 style={styles.h1}>Le mie liste</h1>
+          {settings.gamification && (
+            <span style={styles.pointsBadge}>
+              <Trophy size={13} /> {points}
+            </span>
+          )}
+          <button style={styles.iconBtnGhost} onClick={onOpenSettings} aria-label="Impostazioni">
+            <SettingsIcon size={19} color={styles.colors.muted} />
+          </button>
+        </div>
+        <p style={styles.subtitle}>
+          {lists.length === 0 ? "Nessuna lista ancora, creane una." : `${lists.length} ${lists.length === 1 ? "lista" : "liste"}`}
+        </p>
+      </header>
+
+      <div style={styles.toolbarRow}>
+        <div style={{ position: "relative" }}>
+          <button
+            style={{ ...styles.toolbarBtn, ...(showFilterMenu ? styles.toolbarBtnActive : {}) }}
+            onClick={() => setShowFilterMenu((v) => !v)}
+            aria-label="Filtra liste"
+          >
+            <SlidersHorizontal size={16} />
+            <span style={{ fontSize: 12.5, marginLeft: 6 }}>Filtra</span>
+          </button>
+          {showFilterMenu && (
+            <FilterDropdown
+              styles={styles}
+              animated={animated}
+              sortOptions={HOME_SORT_OPTIONS}
+              sortMode={sortMode}
+              setSortMode={setSortMode}
+              colorFilter={colorFilter}
+              setColorFilter={setColorFilter}
+            />
+          )}
+        </div>
+      </div>
+
+      <div style={styles.listOfCards}>
+        {displayedLists.length === 0 && !showNewList && (
+          <div style={styles.emptyState}>
+            <p style={styles.emptyTitle}>{lists.length === 0 ? "Il carrello è vuoto" : "Nessun risultato"}</p>
+            <p style={styles.emptyBody}>
+              {lists.length === 0 ? "Crea la tua prima lista della spesa per iniziare." : "Prova un altro filtro."}
+            </p>
+          </div>
+        )}
+
+        {displayedLists.map((l) => {
+          const total = listTotal(l);
+          const done = l.items.filter((it) => it.checked).length;
+          const offset = swipe[l.id] || 0;
+          const dragging = dragRef.current.active && dragRef.current.id === l.id;
+          return (
+            <div key={l.id} style={styles.swipeWrap} className={animated ? "anim-card-in" : ""}>
+              <div style={styles.swipeActions}>
+                <button
+                  style={styles.swipeActionDuplicate}
+                  onClick={() => {
+                    duplicateList(l.id);
+                    closeSwipe(l.id);
+                  }}
+                  aria-label="Duplica lista"
+                >
+                  <Copy size={16} color="#fff" />
+                  <span style={{ fontSize: 10, color: "#fff" }}>Duplica</span>
+                </button>
+              </div>
+              <div
+                style={{
+                  ...styles.ticketCard,
+                  transform: `translateX(${offset}px)`,
+                  transition: dragging ? "none" : "transform 0.2s ease",
+                }}
+                onClick={() => (offset !== 0 ? closeSwipe(l.id) : openList(l.id))}
+                onPointerDown={(e) => handlePointerDown(e, l.id)}
+                onPointerMove={handlePointerMove}
+                onPointerUp={handlePointerUp}
+                onPointerCancel={handlePointerUp}
+              >
+                <div style={styles.ticketTornEdge} />
+                <div style={styles.ticketBody}>
+                  <div style={styles.ticketRow}>
+                    <ColorTag styles={styles} color={l.color} mode={settings.colorStyle}>
+                      <span style={styles.ticketTitle}>{l.title}</span>
+                    </ColorTag>
+                    <div style={styles.rowGapSm}>
+                      {l.completed && <span style={styles.completedBadge}>Completata</span>}
+                      <button
+                        style={styles.iconBtnGhost}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteList(l.id);
+                        }}
+                        aria-label="Elimina lista"
+                      >
+                        <Trash2 size={16} color={styles.colors.muted} />
+                      </button>
+                    </div>
+                  </div>
+                  <div style={styles.ticketMeta}>
+                    <span>
+                      {done}/{l.items.length} spuntati
+                    </span>
+                    <span style={styles.ticketTotal}>{fmtEUR(total)}</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {showNewList ? (
+        <div style={styles.newListBox} className={animated ? "anim-panel-in" : ""}>
+          <input
+            autoFocus
+            style={styles.input}
+            placeholder="Titolo della lista (es. Spesa settimanale)"
+            value={newListTitle}
+            onChange={(e) => setNewListTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") createList();
+              if (e.key === "Escape") setShowNewList(false);
+            }}
+          />
+          <div>
+            <p style={styles.fieldLabel}>Colore della lista</p>
+            <ColorSwatchRow styles={styles} value={newListColor} onChange={setNewListColor} allowNone={false} />
+          </div>
+          <div style={styles.rowGap}>
+            <button style={styles.primaryBtn} onClick={createList}>
+              Crea lista
+            </button>
+            <button style={styles.secondaryBtn} onClick={() => setShowNewList(false)}>
+              Annulla
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button style={styles.fab} onClick={() => setShowNewList(true)} aria-label="Nuova lista">
+          <Plus size={22} color="#fff" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+function SettingsScreen({ animated, styles, settings, setSettings, points, onBack }) {
+  return (
+    <div style={styles.screen} className={animated ? "anim-screen-in" : ""}>
+      <header style={styles.header}>
+        <div style={styles.headerRow}>
+          <button style={styles.iconBtnGhost} onClick={onBack} aria-label="Indietro">
+            <ArrowLeft size={20} color={styles.colors.ink} />
+          </button>
+          <h1 style={styles.h1}>Impostazioni</h1>
+        </div>
+      </header>
+
+      <div style={styles.receipt}>
+        <div style={styles.settingsRow}>
+          <div>
+            <div style={styles.settingsLabel}>Barra gli elementi spuntati</div>
+            <div style={styles.settingsHint}>Quando attivo, un elemento spuntato appare sbiadito al 50% e con una riga sopra.</div>
+          </div>
+          <button
+            style={{ ...styles.toggle, ...(settings.strikethrough ? styles.toggleOn : {}) }}
+            onClick={() => setSettings((s) => ({ ...s, strikethrough: !s.strikethrough }))}
+            aria-label="Attiva o disattiva la barratura"
+          >
+            <span style={{ ...styles.toggleKnob, ...(settings.strikethrough ? styles.toggleKnobOn : {}) }} />
+          </button>
+        </div>
+        <PerforatedDivider />
+        <div style={styles.settingsRow}>
+          <div>
+            <div style={styles.settingsLabel}>Animazioni</div>
+            <div style={styles.settingsHint}>Transizioni ed effetti dinamici per liste, popup e articoli.</div>
+          </div>
+          <button
+            style={{ ...styles.toggle, ...(settings.animations ? styles.toggleOn : {}) }}
+            onClick={() => setSettings((s) => ({ ...s, animations: !s.animations }))}
+            aria-label="Attiva o disattiva le animazioni"
+          >
+            <span style={{ ...styles.toggleKnob, ...(settings.animations ? styles.toggleKnobOn : {}) }} />
+          </button>
+        </div>
+        <PerforatedDivider />
+        <div style={styles.settingsRow}>
+          <div>
+            <div style={styles.settingsLabel}>Gamification</div>
+            <div style={styles.settingsHint}>
+              Guadagna punti quando spendi meno rispetto alla spesa precedente. Disattivandola non perdi i punti già
+              accumulati.
+            </div>
+          </div>
+          <button
+            style={{ ...styles.toggle, ...(settings.gamification ? styles.toggleOn : {}) }}
+            onClick={() => setSettings((s) => ({ ...s, gamification: !s.gamification }))}
+            aria-label="Attiva o disattiva la gamification"
+          >
+            <span style={{ ...styles.toggleKnob, ...(settings.gamification ? styles.toggleKnobOn : {}) }} />
+          </button>
+        </div>
+        {settings.gamification && (
+          <div style={styles.pointsSummary}>
+            <Trophy size={15} color={styles.colors.green} />
+            <span>{points} punti accumulati finora</span>
+          </div>
+        )}
+      </div>
+
+      <p style={{ ...styles.fieldLabel, marginTop: 18 }}>Stile dei colori (liste e articoli)</p>
+      <div style={styles.receipt}>
+        {COLOR_STYLE_OPTIONS.map((opt, idx) => (
+          <React.Fragment key={opt.id}>
+            <button
+              style={{ ...styles.colorStyleRow, ...(settings.colorStyle === opt.id ? styles.colorStyleRowActive : {}) }}
+              onClick={() => setSettings((s) => ({ ...s, colorStyle: opt.id }))}
+            >
+              <ColorTag styles={styles} color={COLOR_PALETTE[0]} mode={opt.id} small>
+                Esempio
+              </ColorTag>
+              <span style={styles.colorStyleLabel}>{opt.label}</span>
+              {settings.colorStyle === opt.id && <Check size={15} color={styles.colors.green} />}
+            </button>
+            {idx < COLOR_STYLE_OPTIONS.length - 1 && <PerforatedDivider />}
+          </React.Fragment>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const EMPTY_FORM = { title: "", caption: "", qty: "1", price: "", emoji: "", color: null };
+
+function ListScreen({
+  animated,
+  styles,
+  list,
+  allLists,
+  settings,
+  onBack,
+  updateList,
+  addItem,
+  addItems,
+  editItem,
+  deleteItem,
+  deleteItems,
+  toggleChecked,
+  onRequestComplete,
+}) {
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState(list.title);
+  const [editingColor, setEditingColor] = useState(false);
+
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [formMode, setFormMode] = useState("add");
+  const [editingItemId, setEditingItemId] = useState(null);
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [emojiTouched, setEmojiTouched] = useState(false);
+
+  const [editingPriceId, setEditingPriceId] = useState(null);
+  const [priceDraft, setPriceDraft] = useState("");
+  const [qtyModalFor, setQtyModalFor] = useState(null);
+  const [editingEmojiId, setEditingEmojiId] = useState(null);
+  const [emojiDraft, setEmojiDraft] = useState("");
+
+  const [swipe, setSwipe] = useState({});
+  const dragRef = useRef({ id: null, startX: 0, base: 0, active: false });
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortMode, setSortMode] = useState("manual");
+  const [colorFilter, setColorFilter] = useState(null);
+  const [showFilterMenu, setShowFilterMenu] = useState(false);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+
+  const [importOpen, setImportOpen] = useState(false);
+  const [importStep, setImportStep] = useState("pick-list");
+  const [importSourceId, setImportSourceId] = useState(null);
+  const [importSelected, setImportSelected] = useState({});
+
+  const [quickOpen, setQuickOpen] = useState(false);
+  const [quickStep, setQuickStep] = useState("select");
+  const [quickSelected, setQuickSelected] = useState({});
+
+  const [textOpen, setTextOpen] = useState(false);
+  const [textStep, setTextStep] = useState("input");
+  const [textValue, setTextValue] = useState("");
+  const [textParsed, setTextParsed] = useState([]);
+  const fileInputRef = useRef(null);
+
+  const total = list.items.reduce((s, it) => s + (Number(it.price) || 0) * (Number(it.qty) || 0), 0);
+
+  const displayedItems = useMemo(() => {
+    let arr = sortItems(list.items, list.checkOrder, sortMode);
+    if (colorFilter) arr = arr.filter((it) => it.color === colorFilter);
+    const q = searchQuery.trim().toLowerCase();
+    if (q) arr = arr.filter((it) => it.title.toLowerCase().includes(q) || (it.emoji && it.emoji.includes(q)));
+    return arr;
+  }, [list.items, list.checkOrder, sortMode, colorFilter, searchQuery]);
+
+  const suggestions = useMemo(() => {
+    const currentTitles = new Set(list.items.map((it) => it.title.trim().toLowerCase()));
+    const map = new Map();
+    for (const l of allLists) {
+      for (const it of l.items) {
+        const key = it.title.trim().toLowerCase();
+        if (!key || currentTitles.has(key)) continue;
+        map.set(key, { title: it.title, emoji: it.emoji || "", color: it.color || null });
+      }
+    }
+    return Array.from(map.values()).slice(-16).reverse();
+  }, [allLists, list.items]);
+
+  const otherLists = allLists.filter((l) => l.id !== list.id);
+  const importSourceList = allLists.find((l) => l.id === importSourceId) || null;
+  const importSelectedCount = Object.values(importSelected).filter(Boolean).length;
+  const quickSelectedCount = Object.values(quickSelected).filter(Boolean).length;
+
+  function saveTitle() {
+    const t = titleDraft.trim() || "Lista senza nome";
+    updateList(list.id, { title: t });
+    setEditingTitle(false);
+  }
+
+  function onTitleFormChange(v) {
+    setForm((f) => {
+      const next = { ...f, title: v };
+      if (!emojiTouched) next.emoji = suggestEmoji(v);
+      return next;
+    });
+  }
+
+  function openAddForm() {
+    setForm(EMPTY_FORM);
+    setEmojiTouched(false);
+    setFormMode("add");
+    setEditingItemId(null);
+    setShowAddForm(true);
+  }
+
+  function openEditForm(it) {
+    setForm({
+      title: it.title,
+      caption: it.caption || "",
+      qty: String(it.qty),
+      price: it.price === "" || it.price === undefined ? "" : String(it.price),
+      emoji: it.emoji || "",
+      color: it.color || null,
+    });
+    setEmojiTouched(true);
+    setFormMode("edit");
+    setEditingItemId(it.id);
+    setShowAddForm(true);
+    closeSwipe(it.id);
+  }
+
+  function closeForm() {
+    setShowAddForm(false);
+    setForm(EMPTY_FORM);
+    setEmojiTouched(false);
+    setFormMode("add");
+    setEditingItemId(null);
+  }
+
+  function submitForm() {
+    if (!form.title.trim()) return;
+    const payload = {
+      title: form.title.trim(),
+      caption: form.caption.trim(),
+      qty: form.qty === "" ? 1 : Number(form.qty),
+      price: form.price === "" ? "" : Number(form.price),
+      emoji: form.emoji,
+      color: form.color,
+    };
+    if (formMode === "edit" && editingItemId) editItem(list.id, editingItemId, payload);
+    else addItem(list.id, payload);
+    closeForm();
+  }
+
+  function commitPrice(itemId) {
+    const val = priceDraft.trim();
+    editItem(list.id, itemId, { price: val === "" ? "" : Number(val) });
+    setEditingPriceId(null);
+  }
+  function commitEmoji(itemId) {
+    editItem(list.id, itemId, { emoji: emojiDraft.trim().slice(0, 4) });
+    setEditingEmojiId(null);
+  }
+  function addSuggestion(sug) {
+    addItem(list.id, { title: sug.title, caption: "", qty: 1, price: "", emoji: sug.emoji, color: sug.color });
+  }
+  function closeSwipe(id) {
+    setSwipe((s) => ({ ...s, [id]: 0 }));
+  }
+  function handlePointerDown(e, id) {
+    dragRef.current = { id, startX: e.clientX, base: swipe[id] || 0, active: true };
+  }
+  function handlePointerMove(e) {
+    if (!dragRef.current.active) return;
+    const delta = e.clientX - dragRef.current.startX;
+    let next = dragRef.current.base + delta;
+    next = Math.max(-96, Math.min(0, next));
+    setSwipe((s) => ({ ...s, [dragRef.current.id]: next }));
+  }
+  function handlePointerUp() {
+    if (!dragRef.current.active) return;
+    const id = dragRef.current.id;
+    setSwipe((s) => {
+      const cur = s[id] || 0;
+      return { ...s, [id]: cur < -48 ? -96 : 0 };
+    });
+    dragRef.current.active = false;
+  }
+
+  // --- Import from another list ---
+  function openImport() {
+    setImportOpen(true);
+    setImportStep("pick-list");
+    setImportSourceId(null);
+    setImportSelected({});
+  }
+  function pickImportSource(id) {
+    const src = allLists.find((l) => l.id === id);
+    const sel = {};
+    (src ? src.items : []).forEach((it) => (sel[it.id] = true));
+    setImportSourceId(id);
+    setImportSelected(sel);
+    setImportStep("pick-items");
+  }
+  function toggleImportItem(id) {
+    setImportSelected((s) => ({ ...s, [id]: !s[id] }));
+  }
+  function confirmImport() {
+    if (!importSourceList) return;
+    const chosen = importSourceList.items.filter((it) => importSelected[it.id]);
+    if (chosen.length > 0) {
+      addItems(
+        list.id,
+        chosen.map((it) => ({ title: it.title, caption: it.caption, qty: it.qty, price: it.price, emoji: it.emoji, color: it.color }))
+      );
+    }
+    setImportOpen(false);
+  }
+
+  // --- Quick check (bulk remove) ---
+  function openQuickCheck() {
+    setQuickOpen(true);
+    setQuickStep("select");
+    setQuickSelected({});
+  }
+  function toggleQuickItem(id) {
+    setQuickSelected((s) => ({ ...s, [id]: !s[id] }));
+  }
+  function proceedQuickCheck() {
+    if (quickSelectedCount === 0) return;
+    setQuickStep("confirm");
+  }
+  function confirmQuickDelete() {
+    const ids = Object.keys(quickSelected).filter((id) => quickSelected[id]);
+    if (ids.length > 0) deleteItems(list.id, ids);
+    setQuickOpen(false);
+  }
+
+  // --- Add from text / file ---
+  function openTextAdd() {
+    setTextOpen(true);
+    setTextStep("input");
+    setTextValue("");
+    setTextParsed([]);
+  }
+  function handleFileChange(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => setTextValue(String(ev.target.result || ""));
+    reader.readAsText(file);
+    e.target.value = "";
+  }
+  function proceedTextAdd() {
+    const lines = textValue
+      .split("\n")
+      .map((l) => l.trim())
+      .filter(Boolean);
+    if (lines.length === 0) return;
+    setTextParsed(lines);
+    setTextStep("confirm");
+  }
+  function confirmTextAdd() {
+    addItems(
+      list.id,
+      textParsed.map((line) => ({ title: line, caption: "", qty: 1, price: "", emoji: suggestEmoji(line), color: null }))
+    );
+    setTextOpen(false);
+  }
+
+  return (
+    <div style={styles.screen} className={animated ? "anim-screen-in" : ""}>
+      <header style={styles.header}>
+        <div style={styles.headerRow}>
+          <button style={styles.iconBtnGhost} onClick={onBack} aria-label="Indietro">
+            <ArrowLeft size={20} color={styles.colors.ink} />
+          </button>
+          {editingTitle ? (
+            <input
+              autoFocus
+              style={{ ...styles.input, flex: 1, margin: 0 }}
+              value={titleDraft}
+              onChange={(e) => setTitleDraft(e.target.value)}
+              onBlur={saveTitle}
+              onKeyDown={(e) => e.key === "Enter" && saveTitle()}
+            />
+          ) : (
+            <div
+              style={{ flex: 1 }}
+              onClick={() => {
+                setTitleDraft(list.title);
+                setEditingTitle(true);
+              }}
+            >
+              <ColorTag styles={styles} color={list.color} mode={settings.colorStyle}>
+                <span style={styles.h1}>{list.title}</span>
+              </ColorTag>
+            </div>
+          )}
+          <button style={styles.iconBtnGhost} onClick={() => setEditingColor((v) => !v)} aria-label="Cambia colore lista">
+            <Palette size={17} color={styles.colors.muted} />
+          </button>
+          <Pencil
+            size={15}
+            color={styles.colors.muted}
+            onClick={() => {
+              setTitleDraft(list.title);
+              setEditingTitle(true);
+            }}
+          />
+        </div>
+        {editingColor && (
+          <div style={{ marginTop: 8, marginLeft: 30 }} className={animated ? "anim-panel-in" : ""}>
+            <ColorSwatchRow
+              styles={styles}
+              value={list.color}
+              onChange={(c) => {
+                updateList(list.id, { color: c });
+                setEditingColor(false);
+              }}
+              allowNone={false}
+            />
+          </div>
+        )}
+      </header>
+
+      <div style={styles.toolbarRow}>
+        <div style={styles.searchBox}>
+          <Search size={15} color={styles.colors.muted} />
+          <input
+            style={styles.searchInput}
+            placeholder="Cerca per nome o emote"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          {searchQuery && (
+            <button style={styles.iconBtnGhost} onClick={() => setSearchQuery("")} aria-label="Cancella ricerca">
+              <X size={14} color={styles.colors.muted} />
+            </button>
+          )}
+        </div>
+        <div style={{ position: "relative" }}>
+          <button
+            style={{ ...styles.toolbarBtn, ...(showFilterMenu ? styles.toolbarBtnActive : {}) }}
+            onClick={() => {
+              setShowFilterMenu((v) => !v);
+              setShowSuggestions(false);
+            }}
+            aria-label="Filtra"
+          >
+            <SlidersHorizontal size={16} />
+          </button>
+          {showFilterMenu && (
+            <FilterDropdown
+              styles={styles}
+              animated={animated}
+              sortOptions={SORT_OPTIONS}
+              sortMode={sortMode}
+              setSortMode={setSortMode}
+              colorFilter={colorFilter}
+              setColorFilter={setColorFilter}
+            />
+          )}
+        </div>
+        <button
+          style={{ ...styles.toolbarBtn, ...(showSuggestions ? styles.toolbarBtnActive : {}) }}
+          onClick={() => {
+            setShowSuggestions((v) => !v);
+            setShowFilterMenu(false);
+          }}
+          aria-label="Suggerimenti"
+        >
+          <Lightbulb size={16} />
+        </button>
+      </div>
+
+      <div style={styles.quickActionsRow}>
+        <button style={styles.quickActionPill} onClick={openImport}>
+          <ListPlus size={14} /> Importa da lista
+        </button>
+        <button style={styles.quickActionPill} onClick={openQuickCheck}>
+          <ListX size={14} /> Check veloce
+        </button>
+        <button style={styles.quickActionPill} onClick={openTextAdd}>
+          <FileText size={14} /> Da testo
+        </button>
+      </div>
+
+      {showSuggestions && (
+        <div style={styles.suggestionsPanel} className={animated ? "anim-panel-in" : ""}>
+          {suggestions.length === 0 ? (
+            <p style={styles.suggestionsEmpty}>Nessun suggerimento dalle altre liste.</p>
+          ) : (
+            <div style={styles.suggestionsRow}>
+              {suggestions.map((sug) => (
+                <button key={sug.title} style={styles.suggestionChip} onClick={() => addSuggestion(sug)}>
+                  {sug.emoji ? <span>{sug.emoji}</span> : null} {sug.title}
+                  <Plus size={12} />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <div style={styles.receipt}>
+        {displayedItems.length === 0 && !showAddForm && (
+          <div style={styles.emptyState}>
+            <p style={styles.emptyTitle}>{list.items.length === 0 ? "Lista vuota" : "Nessun risultato"}</p>
+            <p style={styles.emptyBody}>
+              {list.items.length === 0 ? "Aggiungi il primo articolo qui sotto." : "Prova un'altra ricerca o filtro."}
+            </p>
+          </div>
+        )}
+
+        {displayedItems.map((it, idx) => {
+          const subtotal = (Number(it.price) || 0) * (Number(it.qty) || 0);
+          const checkedStyle = it.checked && settings.strikethrough;
+          const offset = swipe[it.id] || 0;
+          const dragging = dragRef.current.active && dragRef.current.id === it.id;
+          return (
+            <div key={it.id}>
+              <div style={styles.swipeWrap} className={animated ? "anim-item-in" : ""}>
+                <div style={styles.swipeActions}>
+                  <button style={styles.swipeActionEdit} onClick={() => openEditForm(it)} aria-label="Modifica">
+                    <Pencil size={16} color="#fff" />
+                  </button>
+                  <button style={styles.swipeActionDelete} onClick={() => deleteItem(list.id, it.id)} aria-label="Elimina">
+                    <Trash2 size={16} color="#fff" />
+                  </button>
+                </div>
+
+                <div
+                  style={{
+                    ...styles.itemRow,
+                    transform: `translateX(${offset}px)`,
+                    transition: dragging ? "none" : "transform 0.2s ease",
+                    background: styles.colors.card,
+                  }}
+                  onPointerDown={(e) => handlePointerDown(e, it.id)}
+                  onPointerMove={handlePointerMove}
+                  onPointerUp={handlePointerUp}
+                  onPointerCancel={handlePointerUp}
+                >
+                  {offset !== 0 && <div style={styles.swipeCloseOverlay} onClick={() => closeSwipe(it.id)} />}
+
+                  <div style={{ ...styles.itemRowInner, ...(checkedStyle ? { opacity: 0.5 } : {}) }}>
+                    <button
+                      style={{ ...styles.checkCircle, ...(it.checked ? styles.checkCircleOn : {}) }}
+                      onClick={() => toggleChecked(list.id, it.id)}
+                      aria-label="Spunta articolo"
+                    >
+                      {it.checked && <Check size={13} color="#fff" strokeWidth={3} />}
+                    </button>
+
+                    <div
+                      style={styles.emojiSlot}
+                      onClick={() => {
+                        setEditingEmojiId(it.id);
+                        setEmojiDraft(it.emoji || "");
+                      }}
+                    >
+                      {editingEmojiId === it.id ? (
+                        <input
+                          autoFocus
+                          style={styles.emojiInput}
+                          value={emojiDraft}
+                          placeholder="＋"
+                          onChange={(e) => setEmojiDraft(e.target.value)}
+                          onBlur={() => commitEmoji(it.id)}
+                          onKeyDown={(e) => e.key === "Enter" && commitEmoji(it.id)}
+                        />
+                      ) : it.emoji ? (
+                        <span style={styles.emojiChar}>{it.emoji}</span>
+                      ) : (
+                        <span style={styles.emojiPlaceholder}>+</span>
+                      )}
+                    </div>
+
+                    <div style={styles.itemMain}>
+                      {checkedStyle ? (
+                        <div style={{ ...styles.itemTitle, ...styles.itemTitleChecked }}>{it.title}</div>
+                      ) : (
+                        <ColorTag styles={styles} color={it.color} mode={settings.colorStyle} small>
+                          <span style={styles.itemTitle}>{it.title}</span>
+                        </ColorTag>
+                      )}
+                      {it.caption ? <div style={styles.itemCaption}>{it.caption}</div> : null}
+
+                      <div style={styles.itemLedgerRow}>
+                        <button style={styles.qtyBox} onClick={() => setQtyModalFor(it.id)}>
+                          ×{it.qty}
+                        </button>
+                        <span
+                          style={styles.priceBox}
+                          onClick={() => {
+                            setEditingPriceId(it.id);
+                            setPriceDraft(it.price === "" || it.price === undefined ? "" : String(it.price));
+                          }}
+                        >
+                          {editingPriceId === it.id ? (
+                            <input
+                              autoFocus
+                              type="number"
+                              step="0.01"
+                              placeholder="0.00"
+                              style={styles.inlineNumInput}
+                              value={priceDraft}
+                              onChange={(e) => setPriceDraft(e.target.value)}
+                              onBlur={() => commitPrice(it.id)}
+                              onKeyDown={(e) => e.key === "Enter" && commitPrice(it.id)}
+                            />
+                          ) : it.price === "" || it.price === undefined ? (
+                            <span style={{ color: styles.colors.muted }}>+ prezzo</span>
+                          ) : (
+                            fmtEUR(Number(it.price))
+                          )}
+                        </span>
+                        <span style={styles.subtotalTag}>{fmtEUR(subtotal)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              {idx < displayedItems.length - 1 && <PerforatedDivider />}
+            </div>
+          );
+        })}
+
+        {list.items.length > 0 && (
+          <>
+            <PerforatedDivider />
+            <div style={styles.totalRow}>
+              <span style={styles.totalLabel}>totale</span>
+              <span style={styles.totalValue}>{fmtEUR(total)}</span>
+            </div>
+          </>
+        )}
+      </div>
+
+      {showAddForm ? (
+        <div style={styles.newListBox} className={animated ? "anim-panel-in" : ""}>
+          <p style={styles.fieldLabel}>{formMode === "edit" ? "Modifica articolo" : "Nuovo articolo"}</p>
+          <div style={styles.rowGap}>
+            <div style={{ ...styles.emojiSlot, ...styles.emojiSlotForm }}>
+              <input
+                style={styles.emojiInput}
+                value={form.emoji}
+                placeholder="＋"
+                onChange={(e) => {
+                  setEmojiTouched(true);
+                  setForm({ ...form, emoji: e.target.value });
+                }}
+              />
+            </div>
+            <input
+              autoFocus
+              style={{ ...styles.input, flex: 1 }}
+              placeholder="Nome articolo (es. Latte)"
+              value={form.title}
+              onChange={(e) => onTitleFormChange(e.target.value)}
+            />
+          </div>
+          <input
+            style={styles.input}
+            placeholder="Didascalia (opzionale, es. intero 1L)"
+            value={form.caption}
+            onChange={(e) => setForm({ ...form, caption: e.target.value })}
+          />
+          <div style={styles.rowGap}>
+            <input
+              type="number"
+              style={{ ...styles.input, flex: 1 }}
+              placeholder="Quantità"
+              value={form.qty}
+              onChange={(e) => setForm({ ...form, qty: e.target.value })}
+            />
+            <input
+              type="number"
+              step="0.01"
+              style={{ ...styles.input, flex: 1 }}
+              placeholder="Prezzo unitario (opz.)"
+              value={form.price}
+              onChange={(e) => setForm({ ...form, price: e.target.value })}
+            />
+          </div>
+          <div>
+            <p style={styles.fieldLabel}>Colore del nome (opzionale)</p>
+            <ColorSwatchRow styles={styles} value={form.color} onChange={(c) => setForm({ ...form, color: c })} />
+          </div>
+          <div style={styles.rowGap}>
+            <button style={styles.primaryBtn} onClick={submitForm}>
+              {formMode === "edit" ? "Salva modifiche" : "Aggiungi"}
+            </button>
+            <button style={styles.secondaryBtn} onClick={closeForm}>
+              Annulla
+            </button>
+          </div>
+        </div>
+      ) : (
+        <button style={styles.fab} onClick={openAddForm} aria-label="Aggiungi articolo">
+          <Plus size={22} color="#fff" />
+        </button>
+      )}
+
+      {!list.completed && list.items.length > 0 && (
+        <button style={styles.completeBtn} onClick={onRequestComplete}>
+          Completa la spesa
+        </button>
+      )}
+
+      {qtyModalFor && (
+        <QtyWheelModal
+          styles={styles}
+          animated={animated}
+          initial={(list.items.find((it) => it.id === qtyModalFor) || {}).qty || 0}
+          onCancel={() => setQtyModalFor(null)}
+          onConfirm={(val) => {
+            editItem(list.id, qtyModalFor, { qty: val });
+            setQtyModalFor(null);
+          }}
+        />
+      )}
+
+      {importOpen && (
+        <ModalOverlay styles={styles} animated={animated} wide onClose={() => setImportOpen(false)}>
+          {importStep === "pick-list" ? (
+            <>
+              <p style={styles.modalTitle}>Importa da un'altra lista</p>
+              {otherLists.length === 0 ? (
+                <p style={styles.modalBody}>Non ci sono altre liste da cui importare.</p>
+              ) : (
+                <div style={styles.pickListCol}>
+                  {otherLists.map((l) => (
+                    <button key={l.id} style={styles.pickListRow} onClick={() => pickImportSource(l.id)}>
+                      <span>{l.title}</span>
+                      <span style={{ fontSize: 12, color: styles.colors.muted }}>{l.items.length} articoli</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              <button style={{ ...styles.textBtn, marginTop: 10 }} onClick={() => setImportOpen(false)}>
+                Annulla
+              </button>
+            </>
+          ) : (
+            <>
+              <p style={styles.modalTitle}>Scegli gli articoli</p>
+              <p style={styles.modalBody}>Deseleziona quelli che non ti interessano, poi conferma.</p>
+              <div style={styles.selectList}>
+                {(importSourceList ? importSourceList.items : []).map((it) => (
+                  <SelectableItemRow
+                    key={it.id}
+                    styles={styles}
+                    it={it}
+                    selected={!!importSelected[it.id]}
+                    onToggle={() => toggleImportItem(it.id)}
+                    tone="include"
+                  />
+                ))}
+              </div>
+              <div style={styles.modalColGap}>
+                <button style={styles.primaryBtn} onClick={confirmImport} disabled={importSelectedCount === 0}>
+                  Aggiungi{importSelectedCount > 0 ? ` (${importSelectedCount})` : ""}
+                </button>
+                <button style={styles.textBtn} onClick={() => setImportOpen(false)}>
+                  Annulla
+                </button>
+              </div>
+            </>
+          )}
+        </ModalOverlay>
+      )}
+
+      {quickOpen && (
+        <ModalOverlay styles={styles} animated={animated} wide onClose={() => setQuickOpen(false)}>
+          {quickStep === "select" ? (
+            <>
+              <p style={styles.modalTitle}>Check veloce</p>
+              <p style={styles.modalBody}>Seleziona gli articoli che vuoi eliminare dalla lista.</p>
+              <div style={styles.selectList}>
+                {list.items.map((it) => (
+                  <SelectableItemRow
+                    key={it.id}
+                    styles={styles}
+                    it={it}
+                    selected={!!quickSelected[it.id]}
+                    onToggle={() => toggleQuickItem(it.id)}
+                    tone="remove"
+                  />
+                ))}
+              </div>
+              <div style={styles.modalColGap}>
+                <button style={styles.dangerBtn} onClick={proceedQuickCheck} disabled={quickSelectedCount === 0}>
+                  Elimina selezionati{quickSelectedCount > 0 ? ` (${quickSelectedCount})` : ""}
+                </button>
+                <button style={styles.textBtn} onClick={() => setQuickOpen(false)}>
+                  Annulla
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p style={styles.modalTitle}>Sei sicuro?</p>
+              <p style={styles.modalBody}>Stai per eliminare {quickSelectedCount} articoli dalla lista.</p>
+              <div style={styles.modalColGap}>
+                <button style={styles.dangerBtn} onClick={confirmQuickDelete}>
+                  Sì, elimina
+                </button>
+                <button style={styles.textBtn} onClick={() => setQuickStep("select")}>
+                  Indietro
+                </button>
+              </div>
+            </>
+          )}
+        </ModalOverlay>
+      )}
+
+      {textOpen && (
+        <ModalOverlay styles={styles} animated={animated} wide onClose={() => setTextOpen(false)}>
+          {textStep === "input" ? (
+            <>
+              <p style={styles.modalTitle}>Aggiungi da testo</p>
+              <p style={styles.modalBody}>Scrivi un articolo per riga, oppure carica un file di testo.</p>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".txt,text/plain"
+                style={{ display: "none" }}
+                onChange={handleFileChange}
+              />
+              <button style={styles.secondaryBtn} onClick={() => fileInputRef.current && fileInputRef.current.click()}>
+                Carica file .txt
+              </button>
+              <textarea
+                style={styles.textarea}
+                placeholder={"Latte\nPane\nUova\n..."}
+                value={textValue}
+                onChange={(e) => setTextValue(e.target.value)}
+              />
+              <div style={styles.modalColGap}>
+                <button style={styles.primaryBtn} onClick={proceedTextAdd} disabled={!textValue.trim()}>
+                  Continua
+                </button>
+                <button style={styles.textBtn} onClick={() => setTextOpen(false)}>
+                  Annulla
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p style={styles.modalTitle}>Sei sicuro?</p>
+              <p style={styles.modalBody}>Stai per aggiungere {textParsed.length} nuovi articoli alla lista.</p>
+              <div style={styles.selectList}>
+                {textParsed.map((line, i) => (
+                  <div key={i} style={styles.previewRow}>
+                    {suggestEmoji(line) ? <span>{suggestEmoji(line)}</span> : null}
+                    <span>{line}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={styles.modalColGap}>
+                <button style={styles.primaryBtn} onClick={confirmTextAdd}>
+                  Sì, aggiungi
+                </button>
+                <button style={styles.textBtn} onClick={() => setTextStep("input")}>
+                  Indietro
+                </button>
+              </div>
+            </>
+          )}
+        </ModalOverlay>
+      )}
+    </div>
+  );
+}
+
+function getStyles() {
+  const colors = {
+    paper: "#EEF0E4",
+    card: "#FFFFFF",
+    ink: "#24312A",
+    muted: "#6E7B70",
+    green: "#2F6F4F",
+    orange: "#DB8A3E",
+    line: "#C9CFC0",
+    danger: "#E24B4A",
+  };
+
+  const fontDisplay = "'Fraunces', Georgia, serif";
+  const fontBody = "'IBM Plex Sans', system-ui, sans-serif";
+  const fontMono = "'IBM Plex Mono', 'Courier New', monospace";
+
+  return {
+    colors,
+    appShell: { minHeight: "100vh", background: colors.paper, display: "flex", justifyContent: "center", fontFamily: fontBody, color: colors.ink },
+    loadingBox: { padding: "2rem", fontFamily: fontBody, color: colors.muted },
+    screen: { width: "100%", maxWidth: 420, minHeight: "100vh", background: colors.paper, padding: "1.5rem 1.1rem 7rem", position: "relative" },
+    header: { marginBottom: "1rem" },
+    headerRow: { display: "flex", alignItems: "center", gap: 8 },
+    h1: { fontFamily: fontDisplay, fontWeight: 600, fontSize: 24, margin: 0, cursor: "pointer" },
+    subtitle: { color: colors.muted, fontSize: 13, margin: "4px 0 0 30px" },
+    pointsBadge: { display: "flex", alignItems: "center", gap: 4, fontFamily: fontMono, fontSize: 12.5, background: "#FFF3D6", color: "#9A6B0C", padding: "4px 8px", borderRadius: 20, marginLeft: 4 },
+
+    toolbarRow: { display: "flex", gap: 8, marginBottom: 10, position: "relative" },
+    searchBox: { flex: 1, display: "flex", alignItems: "center", gap: 6, background: colors.card, border: `1px solid ${colors.line}`, borderRadius: 9, padding: "8px 10px" },
+    searchInput: { flex: 1, border: "none", background: "transparent", fontSize: 13.5, color: colors.ink, outline: "none" },
+    toolbarBtn: { minWidth: 36, height: 36, borderRadius: 9, background: colors.card, border: `1px solid ${colors.line}`, color: colors.ink, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 10px" },
+    toolbarBtnActive: { background: colors.green, borderColor: colors.green, color: "#fff" },
+    filterDropdown: { position: "absolute", top: 42, left: 0, background: colors.card, border: `1px solid ${colors.line}`, borderRadius: 10, padding: 8, width: 220, zIndex: 30, boxShadow: "0 6px 18px rgba(36,49,42,0.15)", display: "flex", flexDirection: "column", gap: 2 },
+    filterOption: { textAlign: "left", background: "transparent", border: "none", borderRadius: 6, padding: "8px 9px", fontSize: 13, color: colors.ink },
+    filterOptionActive: { background: "#E1F5EE", color: colors.green, fontWeight: 500 },
+    filterDivider: { height: 1, background: colors.line, margin: "6px 2px" },
+    filterSectionLabel: { fontSize: 11.5, color: colors.muted, margin: "0 0 6px 2px" },
+
+    quickActionsRow: { display: "flex", gap: 8, marginBottom: 10, overflowX: "auto" },
+    quickActionPill: { display: "flex", alignItems: "center", gap: 6, background: colors.card, border: `1px solid ${colors.line}`, borderRadius: 20, padding: "7px 12px", fontSize: 12.5, color: colors.ink, whiteSpace: "nowrap", flex: "none" },
+
+    suggestionsPanel: { background: colors.card, border: `1px dashed ${colors.line}`, borderRadius: 10, padding: "10px 12px", marginBottom: 10 },
+    suggestionsEmpty: { fontSize: 12.5, color: colors.muted, margin: 0 },
+    suggestionsRow: { display: "flex", gap: 8, flexWrap: "wrap" },
+    suggestionChip: { display: "flex", alignItems: "center", gap: 5, background: colors.paper, border: `1px solid ${colors.line}`, borderRadius: 20, padding: "6px 10px", fontSize: 12.5, color: colors.ink },
+
+    listOfCards: { display: "flex", flexDirection: "column", gap: 12 },
+    ticketCard: { position: "relative", zIndex: 1, background: colors.card, borderRadius: 10, border: `1px solid ${colors.line}`, overflow: "hidden", cursor: "pointer" },
+    ticketTornEdge: { height: 4, background: `repeating-linear-gradient(90deg, ${colors.orange} 0 8px, transparent 8px 16px)` },
+    ticketBody: { padding: "12px 14px" },
+    ticketRow: { display: "flex", alignItems: "flex-start", justifyContent: "space-between" },
+    ticketTitle: { fontFamily: fontDisplay, fontWeight: 600, fontSize: 17 },
+    ticketMeta: { display: "flex", justifyContent: "space-between", marginTop: 8, fontSize: 12.5, color: colors.muted, fontFamily: fontMono },
+    ticketTotal: { color: colors.green, fontWeight: 500 },
+    rowGapSm: { display: "flex", alignItems: "center", gap: 6 },
+    completedBadge: { fontSize: 10.5, fontFamily: fontMono, color: colors.green, background: "#E1F5EE", padding: "3px 7px", borderRadius: 20, whiteSpace: "nowrap" },
+
+    emptyState: { textAlign: "center", padding: "2.5rem 1rem", border: `1px dashed ${colors.line}`, borderRadius: 10, background: "rgba(255,255,255,0.4)" },
+    emptyTitle: { fontFamily: fontDisplay, fontSize: 18, fontWeight: 600, margin: "0 0 4px" },
+    emptyBody: { fontSize: 13, color: colors.muted, margin: 0 },
+
+    receipt: { background: colors.card, borderRadius: 10, border: `1px solid ${colors.line}`, padding: "6px 14px 4px" },
+
+    swipeWrap: { position: "relative", borderRadius: 8, overflow: "hidden" },
+    swipeActions: { position: "absolute", top: 0, right: 0, bottom: 0, display: "flex", zIndex: 0 },
+    swipeActionEdit: { width: 48, background: "#378ADD", border: "none", display: "flex", alignItems: "center", justifyContent: "center" },
+    swipeActionDelete: { width: 48, background: "#E24B4A", border: "none", display: "flex", alignItems: "center", justifyContent: "center" },
+    swipeActionDuplicate: { width: 72, background: "#1D9E75", border: "none", display: "flex", flexDirection: "column", gap: 3, alignItems: "center", justifyContent: "center" },
+    swipeCloseOverlay: { position: "absolute", inset: 0, zIndex: 2, background: "transparent" },
+
+    itemRow: { position: "relative", padding: "10px 4px" },
+    itemRowInner: { display: "flex", alignItems: "flex-start", gap: 8 },
+    checkCircle: { width: 22, height: 22, minWidth: 22, borderRadius: "50%", border: `1.5px solid ${colors.line}`, background: "transparent", display: "flex", alignItems: "center", justifyContent: "center", marginTop: 2, padding: 0 },
+    checkCircleOn: { background: colors.green, borderColor: colors.green },
+
+    emojiSlot: { width: 22, minWidth: 22, height: 22, display: "flex", alignItems: "center", justifyContent: "center", marginTop: 2, cursor: "text" },
+    emojiSlotForm: { border: `1px dashed ${colors.line}`, borderRadius: 7, marginTop: 0 },
+    emojiChar: { fontSize: 16, lineHeight: 1 },
+    emojiPlaceholder: { fontSize: 13, color: colors.line },
+    emojiInput: { width: 26, border: "none", background: "transparent", textAlign: "center", fontSize: 16, padding: 0 },
+
+    itemMain: { flex: 1, minWidth: 0 },
+    itemTitle: { fontSize: 15, fontWeight: 500 },
+    itemTitleChecked: { textDecoration: "line-through", color: colors.muted, fontWeight: 400 },
+    itemCaption: { fontSize: 12.5, color: colors.muted, marginTop: 1 },
+
+    itemLedgerRow: { display: "flex", alignItems: "center", gap: 8, marginTop: 7, fontFamily: fontMono, fontSize: 12.5 },
+    qtyBox: { background: colors.paper, border: `1px solid ${colors.line}`, borderRadius: 8, padding: "4px 9px", color: colors.ink, fontFamily: fontMono, fontSize: 12.5 },
+    priceBox: { background: colors.paper, border: `1px solid ${colors.line}`, borderRadius: 8, padding: "4px 9px", display: "inline-flex", cursor: "text" },
+    subtotalTag: { marginLeft: "auto", color: colors.green, fontWeight: 500 },
+    inlineNumInput: { width: 58, fontFamily: fontMono, fontSize: 12.5, border: "none", background: "transparent", padding: 0 },
+
+    totalRow: { display: "flex", justifyContent: "space-between", alignItems: "baseline", padding: "12px 4px 14px" },
+    totalLabel: { fontFamily: fontMono, fontSize: 13, letterSpacing: 1, color: colors.muted },
+    totalValue: { fontFamily: fontMono, fontSize: 22, fontWeight: 500, color: colors.ink },
+
+    newListBox: { background: colors.card, border: `1px solid ${colors.line}`, borderRadius: 10, padding: 14, marginTop: 14, display: "flex", flexDirection: "column", gap: 10 },
+    input: { width: "100%", padding: "9px 10px", borderRadius: 7, border: `1px solid ${colors.line}`, fontSize: 14, background: "#fff", color: colors.ink },
+    textarea: { width: "100%", minHeight: 110, padding: "9px 10px", borderRadius: 7, border: `1px solid ${colors.line}`, fontSize: 13.5, background: "#fff", color: colors.ink, resize: "vertical" },
+    fieldLabel: { fontSize: 12, color: colors.muted, margin: "0 0 6px" },
+    rowGap: { display: "flex", gap: 8, alignItems: "center" },
+    swatchRow: { display: "flex", gap: 8, flexWrap: "wrap" },
+    swatch: { width: 26, height: 26, borderRadius: "50%", border: "2px solid transparent", padding: 0 },
+    swatchNone: { background: "#fff", border: `1.5px dashed ${colors.line}`, display: "flex", alignItems: "center", justifyContent: "center" },
+    swatchAll: { background: "conic-gradient(from 0deg, #2F6F4F, #DB8A3E, #378ADD, #D4537E, #7F77DD, #E24B4A, #1D9E75, #BA7517, #2F6F4F)" },
+    swatchSelected: { borderColor: colors.ink },
+
+    primaryBtn: { flex: 1, background: colors.green, color: "#fff", border: "none", borderRadius: 7, padding: "9px 12px", fontSize: 14, fontWeight: 500 },
+    secondaryBtn: { flex: 1, background: "transparent", color: colors.ink, border: `1px solid ${colors.line}`, borderRadius: 7, padding: "9px 12px", fontSize: 14 },
+    dangerBtn: { flex: 1, background: colors.danger, color: "#fff", border: "none", borderRadius: 7, padding: "9px 12px", fontSize: 14, fontWeight: 500 },
+    textBtn: { background: "transparent", color: colors.muted, border: "none", padding: "6px 12px", fontSize: 13 },
+    iconBtnGhost: { background: "transparent", border: "none", padding: 4, display: "flex", alignItems: "center", justifyContent: "center" },
+    fab: { position: "fixed", bottom: 24, right: "calc(50% - 210px + 20px)", width: 52, height: 52, borderRadius: "50%", background: "#2F6F4F", border: "none", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 4px 14px rgba(36,49,42,0.25)" },
+    completeBtn: { position: "fixed", bottom: 24, left: "calc(50% - 210px + 20px)", right: "calc(50% - 210px + 92px)", maxWidth: 420 - 40 - 72, background: colors.ink, color: "#fff", border: "none", borderRadius: 10, padding: "13px 16px", fontSize: 14, fontWeight: 500, boxShadow: "0 4px 14px rgba(36,49,42,0.25)" },
+
+    settingsRow: { display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, padding: "10px 4px" },
+    settingsLabel: { fontSize: 14.5, fontWeight: 500 },
+    settingsHint: { fontSize: 12.5, color: colors.muted, marginTop: 3, maxWidth: 250 },
+    toggle: { width: 42, height: 24, borderRadius: 20, background: colors.line, border: "none", position: "relative", minWidth: 42, padding: 0 },
+    toggleOn: { background: colors.green },
+    toggleKnob: { position: "absolute", top: 2, left: 2, width: 20, height: 20, borderRadius: "50%", background: "#fff", transition: "left 0.15s ease" },
+    toggleKnobOn: { left: 20 },
+    pointsSummary: { display: "flex", alignItems: "center", gap: 6, fontSize: 13, color: colors.green, padding: "10px 4px 4px", fontFamily: fontMono },
+
+    colorStyleRow: { width: "100%", display: "flex", alignItems: "center", gap: 12, background: "transparent", border: "none", padding: "10px 4px", textAlign: "left" },
+    colorStyleRowActive: { background: "#F5F7EF", borderRadius: 8 },
+    colorStyleLabel: { fontSize: 13.5, flex: 1 },
+
+    modalOverlay: { position: "fixed", inset: 0, background: "rgba(36,49,42,0.45)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: 20 },
+    modalCard: { background: colors.card, borderRadius: 14, padding: "22px 20px", maxWidth: 340, width: "100%", textAlign: "center", display: "flex", flexDirection: "column", alignItems: "center", gap: 4 },
+    wideModalCard: { background: colors.card, borderRadius: 14, padding: "20px 18px", maxWidth: 380, width: "100%", maxHeight: "78vh", overflowY: "auto", textAlign: "left", display: "flex", flexDirection: "column", gap: 4 },
+    modalTitle: { fontFamily: fontDisplay, fontWeight: 600, fontSize: 18, margin: "0 0 4px" },
+    modalBody: { fontSize: 13.5, color: colors.muted, margin: "0 0 14px", lineHeight: 1.5 },
+    modalColGap: { display: "flex", flexDirection: "column", gap: 8, width: "100%" },
+    bannerIcon: { width: 46, height: 46, borderRadius: "50%", background: colors.green, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 6, alignSelf: "center" },
+    bannerTotal: { fontFamily: fontMono, fontSize: 26, fontWeight: 500, color: colors.green, margin: "2px 0 6px", textAlign: "center" },
+    gamificationNote: { fontSize: 12.5, background: "#FFF3D6", color: "#9A6B0C", padding: "8px 10px", borderRadius: 8, margin: "0 0 14px", lineHeight: 1.5, textAlign: "center" },
+
+    pickListCol: { display: "flex", flexDirection: "column", gap: 6, marginBottom: 6 },
+    pickListRow: { display: "flex", justifyContent: "space-between", alignItems: "center", background: colors.paper, border: `1px solid ${colors.line}`, borderRadius: 8, padding: "10px 12px", fontSize: 14 },
+    selectList: { display: "flex", flexDirection: "column", gap: 2, maxHeight: 260, overflowY: "auto", margin: "4px 0 14px", border: `1px solid ${colors.line}`, borderRadius: 8, padding: 4 },
+    selectRow: { display: "flex", alignItems: "center", gap: 8, background: "transparent", border: "none", padding: "8px 6px", width: "100%" },
+    selectCircle: { width: 20, height: 20, minWidth: 20, borderRadius: "50%", border: `1.5px solid ${colors.line}`, display: "flex", alignItems: "center", justifyContent: "center" },
+    selectCircleOn: { background: colors.green, borderColor: colors.green },
+    selectCircleRemove: { background: colors.danger, borderColor: colors.danger },
+    previewRow: { display: "flex", alignItems: "center", gap: 8, padding: "6px 6px", fontSize: 13.5 },
+
+    wheelWrap: { position: "relative", width: 140, height: 180, margin: "4px auto 16px", border: `1px solid ${colors.line}`, borderRadius: 12, overflow: "hidden", background: colors.paper },
+    wheelHighlight: { position: "absolute", top: 72, left: 0, right: 0, height: 36, borderTop: `1.5px solid ${colors.green}`, borderBottom: `1.5px solid ${colors.green}`, pointerEvents: "none", zIndex: 2 },
+    wheelScroll: { height: 180, overflowY: "scroll", scrollSnapType: "y mandatory" },
+    wheelItem: { height: 36, display: "flex", alignItems: "center", justifyContent: "center", fontFamily: fontMono, fontSize: 16, color: colors.muted, scrollSnapAlign: "center" },
+    wheelItemActive: { color: colors.ink, fontWeight: 500, fontSize: 19 },
+
+    storageWarning: { position: "fixed", bottom: 16, left: "50%", transform: "translateX(-50%)", background: "#4A1B0C", color: "#F5C4B3", padding: "8px 14px", borderRadius: 8, fontSize: 12.5 },
+  };
+}
+
+const root = createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+</body>
+</html>
