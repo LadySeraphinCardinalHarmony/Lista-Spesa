@@ -4,11 +4,6 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
 <title>Lista della Spesa</title>
-<link rel="manifest" href="manifest.json" />
-<meta name="theme-color" content="#2F6F4F" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="default" />
-<meta name="apple-mobile-web-app-title" content="Lista Spesa" />
 <style>
   html, body { margin:0; padding:0; background:#EEF0E4; -webkit-tap-highlight-color: transparent; overscroll-behavior-y: none; }
   #root { min-height: 100vh; }
@@ -23,15 +18,24 @@
 }
 </script>
 <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
+<!-- pwa:head (generato da make_pwa.py) -->
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#2F6F4F">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Lista Spesa">
+<link rel="apple-touch-icon" href="assets/icons/icon-180.png">
+<link rel="icon" href="assets/icons/icon-192.png">
+<!-- /pwa:head -->
 </head>
 <body>
 <div id="root"></div>
 
 <script>
-// Shim locale dell'API window.storage (usata dall'app) basato su localStorage:
-// STESSE CHIAVI di sempre (grocery-lists-v3, grocery-settings-v3, grocery-gamification-v1)
-// cosi' se apri questo file dallo stesso indirizzo/percorso di prima, le liste
-// e le opzioni salvate in precedenza NON vengono cancellate.
+// Shim locale dell'API window.storage basato su localStorage: STESSE CHIAVI di sempre
+// (grocery-lists-v3, grocery-settings-v3, grocery-gamification-v1), cosi' le liste e le
+// opzioni gia' salvate non vengono cancellate aprendo questa versione.
 window.storage = {
   async get(key) {
     const v = localStorage.getItem(key);
@@ -1419,6 +1423,10 @@ function ListScreen({
   const [quickOpen, setQuickOpen] = useState(false);
   const [quickStep, setQuickStep] = useState("select");
   const [quickSelected, setQuickSelected] = useState({});
+  const [quickSearch, setQuickSearch] = useState("");
+  const [quickSort, setQuickSort] = useState("manual");
+  const [quickColorFilter, setQuickColorFilter] = useState(null);
+  const [quickShowFilterMenu, setQuickShowFilterMenu] = useState(false);
 
   const [textOpen, setTextOpen] = useState(false);
   const [textStep, setTextStep] = useState("input");
@@ -1453,6 +1461,14 @@ function ListScreen({
   const importSourceList = allLists.find((l) => l.id === importSourceId) || null;
   const importSelectedCount = Object.values(importSelected).filter(Boolean).length;
   const quickSelectedCount = Object.values(quickSelected).filter(Boolean).length;
+
+  const quickDisplayedItems = useMemo(() => {
+    let arr = sortItems(list.items, list.checkOrder, quickSort);
+    if (quickColorFilter) arr = arr.filter((it) => it.color === quickColorFilter);
+    const q = quickSearch.trim().toLowerCase();
+    if (q) arr = arr.filter((it) => it.title.toLowerCase().includes(q) || (it.emoji && it.emoji.includes(q)));
+    return arr;
+  }, [list.items, list.checkOrder, quickSort, quickColorFilter, quickSearch]);
 
   function saveTitle() {
     const tt = titleDraft.trim() || "Lista senza nome";
@@ -1528,7 +1544,15 @@ function ListScreen({
     setImportOpen(false);
   }
 
-  function openQuickCheck() { setQuickOpen(true); setQuickStep("select"); setQuickSelected({}); }
+  function openQuickCheck() {
+    setQuickOpen(true);
+    setQuickStep("select");
+    setQuickSelected({});
+    setQuickSearch("");
+    setQuickSort("manual");
+    setQuickColorFilter(null);
+    setQuickShowFilterMenu(false);
+  }
   function toggleQuickItem(id) { setQuickSelected((s) => ({ ...s, [id]: !s[id] })); }
   function proceedQuickCheck() { if (quickSelectedCount === 0) return; setQuickStep("confirm"); }
   function confirmQuickDelete() {
@@ -1791,10 +1815,52 @@ function ListScreen({
             <>
               <p style={styles.modalTitle}>{t("quickCheckTitle")}</p>
               <p style={styles.modalBody}>Seleziona gli articoli che vuoi eliminare dalla lista.</p>
+
+              <div style={styles.quickToolbarRow}>
+                <div style={styles.searchBox}>
+                  <Search size={15} color={styles.colors.muted} />
+                  <input
+                    style={styles.searchInput}
+                    placeholder="Cerca per nome o emote"
+                    value={quickSearch}
+                    onChange={(e) => setQuickSearch(e.target.value)}
+                  />
+                  {quickSearch && (
+                    <button style={styles.iconBtnGhost} onClick={() => setQuickSearch("")} aria-label="Cancella ricerca">
+                      <X size={14} color={styles.colors.muted} />
+                    </button>
+                  )}
+                </div>
+                <div style={{ position: "relative" }}>
+                  <button
+                    style={{ ...styles.toolbarBtn, ...(quickShowFilterMenu ? styles.toolbarBtnActive : {}) }}
+                    onClick={() => setQuickShowFilterMenu((v) => !v)}
+                    aria-label={t("filterBtn")}
+                  >
+                    <SlidersHorizontal size={16} />
+                  </button>
+                  {quickShowFilterMenu && (
+                    <FilterDropdown
+                      styles={styles}
+                      animated={animated}
+                      sortOptions={sortOptionsAll}
+                      sortMode={quickSort}
+                      setSortMode={setQuickSort}
+                      colorFilter={quickColorFilter}
+                      setColorFilter={setQuickColorFilter}
+                    />
+                  )}
+                </div>
+              </div>
+
               <div style={styles.selectList}>
-                {list.items.map((it) => (
-                  <SelectableItemRow key={it.id} styles={styles} it={it} selected={!!quickSelected[it.id]} onToggle={() => toggleQuickItem(it.id)} tone="remove" />
-                ))}
+                {quickDisplayedItems.length === 0 ? (
+                  <p style={{ ...styles.suggestionsEmpty, padding: "10px 6px" }}>Nessun risultato.</p>
+                ) : (
+                  quickDisplayedItems.map((it) => (
+                    <SelectableItemRow key={it.id} styles={styles} it={it} selected={!!quickSelected[it.id]} onToggle={() => toggleQuickItem(it.id)} tone="remove" />
+                  ))
+                )}
               </div>
               <div style={styles.modalColGap}>
                 <button style={styles.dangerBtn} onClick={proceedQuickCheck} disabled={quickSelectedCount === 0}>{t("deleteSelected")}{quickSelectedCount > 0 ? ` (${quickSelectedCount})` : ""}</button>
@@ -1867,6 +1933,7 @@ function getStyles() {
     pointsBadge: { display: "flex", alignItems: "center", gap: 4, fontFamily: fontMono, fontSize: 12, background: "#FFF3D6", color: "#9A6B0C", padding: "4px 7px", borderRadius: 20, border: "none" },
 
     toolbarRow: { display: "flex", gap: 8, marginBottom: 10, position: "relative" },
+    quickToolbarRow: { display: "flex", gap: 8, marginBottom: 10, marginTop: 4, position: "relative" },
     searchBox: { flex: 1, display: "flex", alignItems: "center", gap: 6, background: colors.card, border: `1px solid ${colors.line}`, borderRadius: 9, padding: "8px 10px" },
     searchInput: { flex: 1, border: "none", background: "transparent", fontSize: 13.5, color: colors.ink, outline: "none" },
     toolbarBtn: { minWidth: 36, height: 36, borderRadius: 9, background: colors.card, border: `1px solid ${colors.line}`, color: colors.ink, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 10px" },
@@ -2009,5 +2076,15 @@ function getStyles() {
 const root = createRoot(document.getElementById("root"));
 root.render(<App />);
 </script>
+<!-- pwa:sw (generato da make_pwa.py) -->
+<script>
+  // offline: solo su http(s), non quando si apre il file con doppio clic
+  if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    window.addEventListener('load', function () {
+      navigator.serviceWorker.register('sw.js').catch(function () {});
+    });
+  }
+</script>
+<!-- /pwa:sw -->
 </body>
 </html>
