@@ -1,7 +1,7 @@
 {
   "name": "Lista della Spesa",
   "short_name": "Lista Spesa",
-  "description": "Crea e gestisci liste della spesa con prezzi, sconti, colori e punti",
+  "description": "Crea e gestisci liste della spesa con prezzi, sconti, colori e punti - funziona offline",
   "lang": "it",
   "start_url": "./index.html",
   "scope": "./",

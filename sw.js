@@ -1,9 +1,10 @@
 /* Service worker generato da make_pwa.py — mette in cache l'app per l'uso offline.
    Cambia la versione qui sotto per far scaricare i file aggiornati. */
 // pwa:inizio
-const CACHE = 'lista-spesa-6b97469d';
+const CACHE = 'lista-spesa-b987cc30';
 const FILES = [
   './',
+  './bundle.js',
   './index.html',
   './assets/icons/icon-180.png',
   './assets/icons/icon-192.png',
